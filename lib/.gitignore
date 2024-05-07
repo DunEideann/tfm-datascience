@@ -1,0 +1,13 @@
+*.swp
+*.h5
+*.nc
+*.nc4
+__pycache__
+*.npy
+*.out
+*.err
+*.pt
+__pycache__/
+*.py[cod]
+*$py.class
+wandb/
