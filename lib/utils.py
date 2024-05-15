@@ -28,7 +28,7 @@ def checkUnitsTempt(data, var):
     return data
     
 
-def getMetricsTemp(data):
+def getMetricsTemp(data):#, mask=None):
     """_summary_
 
     Args:
@@ -41,8 +41,15 @@ def getMetricsTemp(data):
     val_mean_annual = data.resample(time = 'YE').mean()
     val_st = data.std(dim = 'time')
     val_99 = data.quantile(0.99, dim = 'time')
+    over30 = data['tasmean'].where(data['tasmean'] >= 30).sum(dim='time').to_dataset(name='tasmean')
+    #over30 = filterByMask(mask=mask, data=over30_prep, var='tasmean').sum(dim='time')
+    over40 = data['tasmean'].where(data['tasmean'] >= 40).sum(dim='time', skipna=False).to_dataset(name='tasmean')
+    #over40 = filterByMask(mask=mask, data=over40_prep, var='tasmean').sum(dim='time')
 
-    return {'mean': val_mean, '99quantile': val_99, 'std': val_st, 'trend': val_mean_annual}
+    #over30 = data['tasmean'].where(data['tasmean'] >= 30 and data['tasmean'] != None).sum(dim='time', keep_attrs='all', skipna=True).to_dataset(name='tasmean')
+    #over40 = data['tasmean'].where(data['tasmean'] >= 40 and data['tasmean'] != None).sum(dim='time', keep_attrs='all', skipna=True).to_dataset(name='tasmean')
+
+    return {'mean': val_mean, '99quantile': val_99, 'std': val_st, 'trend': val_mean_annual, 'over30': over30, 'over40': over40}
 
 def __graphTrend(metrics, season_name, folder_path, pred_name, extra = ''):
     """_summary_
@@ -823,6 +830,25 @@ def obtainMask(var, grid = None, path = None, to_slice=None):
         baseMask = flattenSpatialGrid(grid=grid.load(), var=var)
 
     return baseMask
+
+def filterByMask(mask, data, var='tasmean'):
+    """TODO
+
+    Args:
+        mask (_type_): _description_
+        data (_type_): _description_
+        var (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    data_flat = mask.flatten(grid=data, var=var)
+    data_flat_array = toArray(data_flat)
+    data_flat[var].values = data_flat_array
+    data_unflatten = mask.unFlatten(grid=data_flat, var=var)
+
+    return data_unflatten
+
 def __predict(model, device, **kwargs):
 
     '''

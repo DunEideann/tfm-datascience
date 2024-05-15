@@ -215,6 +215,15 @@ yPredTest = utils.predDataset(X=xTestStand_array,
 
 yPredTest.to_netcdf(f'{PREDS_PATH}predTest_{modelName}.nc')
 
+# Compure predictions on the train set
+yPredTest = utils.predDataset(X=xTrainStand_array,
+                              model=model,
+                              device='cpu',
+                              ref=yTrainUnflatten,
+                              flattener=maskToUse,
+                              var='tasmean')
+
+yPredTest.to_netcdf(f'{PREDS_PATH}predTrain_{modelName}.nc')
 # modelName = f'DeepESD_tas_{PREDICTAND_NAME}' 
 # yPredTest = xr.open_dataset(f'{PREDS_PATH}predTest_{modelName}.nc')
 
