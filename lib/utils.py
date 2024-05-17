@@ -919,7 +919,7 @@ def getPredictand(data_path, name, var):
 
     return predictand
 
-def getPredictos(data_path):
+def getPredictors(data_path):
     predictors_vars = ['t500', 't700', 't850', # Air temperature at 500, 700, 850 hPa
     'q500', 'q700', 'q850', # Specific humidity at 500, 700, 850 hPa
     'v500', 'v700', 'v850', # Meridional wind component at 500, 700, 850 hPa
@@ -934,16 +934,54 @@ def getPredictos(data_path):
     return predictors
 
 def getTrainTest(predictors, predictand, years):
-    y, x = alignDatasets(grid1=predictand, grid2=predictor, coord='time')
+    y, x = alignDatasets(grid1=predictand, grid2=predictors, coord='time')
 
     # Split into train and test set
     yearsTrain = years[0]
     yearsTest = years[1]
 
-    xTrain = x.sel(time=slice(*yearsTrain)).load()
-    xTest = x.sel(time=slice(*yearsTest)).load()
+    xTrain = predictors.sel(time=slice(*yearsTrain)).load()
+    xTest = predictors.sel(time=slice(*yearsTest)).load()
 
-    yTrain = y.sel(time=slice(*yearsTrain)).load()
-    yTest = y.sel(time=slice(*yearsTest)).load()
+    yTrain = predictand.sel(time=slice(*yearsTrain)).load()
+    yTest = predictand.sel(time=slice(*yearsTest)).load()
 
     return xTrain, xTest, yTrain, yTest
+
+def maskData(var, objective, secondGrid=None, grid = None, path = None, to_slice=None):
+    """_summary_
+
+    Args:
+        var (_type_): _description_
+        objective (_type_): _description_
+        secondGrid (_type_, optional): _description_. Defaults to None.
+        grid (_type_, optional): _description_. Defaults to None.
+        path (_type_, optional): _description_. Defaults to None.
+        to_slice (_type_, optional): _description_. Defaults to None.
+
+    Returns:
+        _type_: _description_
+    """
+    if path != None:
+        grid = xr.open_dataset(path)
+    grid = checkCorrectData(grid) # Transform coordinates and dimensions if necessary
+    grid = checkIndex(grid)
+    grid=grid.assign_coords({'time': grid.indexes['time'].normalize()})
+    if to_slice != None:
+        baseMask = flattenSpatialGrid(grid=grid.sel(time=slice(*to_slice)).load(), var=var)
+    else:
+        baseMask = flattenSpatialGrid(grid=grid.load(), var=var)
+
+    objectiveFlat = baseMask.flatten(grid=objective, var=var)
+    objectiveFlat_array = toArray(objectiveFlat)
+    objectiveFlat[var].values = objectiveFlat_array
+    objectiveUnflatten = baseMask.unFlatten(grid=objectiveFlat, var=var)
+
+    if np.isnan(objectiveUnflatten).sum() > 0:
+        secondMask = obtainMask(grid = secondGrid, var = var)
+        secondFlat = secondMask.flatten(grid=objectiveUnflatten, var=var)
+        secondFlat_array = toArray(secondFlat)
+        secondFlat[var].values = secondFlat_array
+        objectiveUnflatten = secondMask.unFlatten(grid=secondFlat, var=var)
+
+    return objectiveUnflatten

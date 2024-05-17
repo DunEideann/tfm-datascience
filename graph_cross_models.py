@@ -6,18 +6,20 @@ from lib import utils, models, data
 import time
 from matplotlib.colors import ListedColormap, BoundaryNorm, LinearSegmentedColormap
 
-FIGS_PATH = '/lustre/gmeteo/WORK/reyess/figs/'
+FIGS_PATH = '/lustre/gmeteo/WORK/reyess/figs/cross_models'
 PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/'
 DATA_PATH_PREDICTANDS_SAVE = '/lustre/gmeteo/WORK/reyess/data/predictand/'
 DATA_PREDICTORS_TRANSFORMED = '/lustre/gmeteo/WORK/reyess/data/NorthAtlanticRegion_1.5degree/'
 MODELS_PATH = '/oceano/gmeteo/users/reyess/tfm/official-code/models'
 
-predictands = ['E-OBS', 'Iberia01_v1.0', 'pti-grid', 'CHELSA', 'ERA5-Land0.25deg']
+predictands = ['E-OBS', 'AEMET_0.25deg', 'Iberia01_v1.0', 'pti-grid', 'CHELSA', 'ERA5-Land0.25deg']
 seasons = {'spring': 'MAM', 'summer': 'JJA', 'autumn': 'SON', 'winter': 'DJF'}
 metrics = ['mean', 'std', '99quantile', 'over30', 'over40']
-plot_metrics = ['pred', 'real', 'diff']
+plot_metrics = ['mean_train', 'real_train', 'diff_train', 'mean_test', 'real_test', 'diff_test']
+yearsTrain = ('1980-01-01', '2003-12-31')
+yearsTest = ('2004-01-01', '2015-12-31')
 
-aemet_pred = xr.open_dataset(f'{PREDS_PATH}predTest_AEMET_0.25deg.nc')
+#aemet_pred = xr.open_dataset(f'{PREDS_PATH}predTest_AEMET_0.25deg.nc')
 # TODO Pasar a archivo unico cosas repetidas
 # PREDICTORS
 predictors = utils.getPredictors(DATA_PREDICTORS_TRANSFORMED)
@@ -25,36 +27,54 @@ predictors = utils.getPredictors(DATA_PREDICTORS_TRANSFORMED)
 
 data_to_plot = {metric: {season_name: {predictand_name: None for predictand_name in predictands} for season_name in seasons.keys()} for metric in plot_metrics}
 
+start_time = time.time()
+
+predictand_list = {}
+for predictand_name in predictands:
+    # PREDICTAND
+    predictand = utils.getPredictand(DATA_PATH_PREDICTANDS_SAVE, predictand_name, 'tasmean').sel(time=slice(*('1980-01-01', '2015-12-31')))
+    predictand_list[predictand_name] = utils.maskData(
+        path = f'{DATA_PATH_PREDICTANDS_SAVE}AEMET_0.25deg/AEMET_0.25deg_tasmean_1951-2022.nc',
+        var='tasmean',
+        to_slice=(yearsTrain[0], yearsTest[1]),
+        objective = predictand,
+        secondGrid = predictand)
+predictand_train_mps = {}
+predictand_test_mps = {}
+for season_name, months in seasons.items():
+    datasets_combined = xr.concat(
+        [ds.isel(time=(ds.time.dt.season == months)) for ds in predictand_list.values()],
+        dim='dataset').mean(dim='dataset')
+    predictand_train_mps[season_name] = utils.getMetricsTemp(datasets_combined.sel(time=slice(*('1980-01-01', '2003-12-31'))))
+    predictand_test_mps[season_name] = utils.getMetricsTemp(datasets_combined.sel(time=slice(*('2004-01-01', '2015-12-31'))))
+
+
+for predictand_name in predictands:
+    # X and Y Train/Test
+    xTrain, xTest, yTrain, yTest = utils.getTrainTest(predictors, predictand_list[predictand_name], (('1980-01-01', '2003-12-31'), ('2004-01-01', '2015-12-31')))
+    for season_name, months in seasons.items():
+        y_train_season = yTrain.isel(time= (yTrain.time.dt.season == months))
+        y_train_metrics = utils.getMetricsTemp(y_train_season)
+        y_test_season = yTest.isel(time= (yTest.time.dt.season == months))
+        y_test_metrics = utils.getMetricsTemp(y_test_season)
+
+        data_to_plot['mean_train'][season_name][predictand_name]  = predictand_train_mps[season_name]
+        data_to_plot['real_train'][season_name][predictand_name]  = y_train_metrics
+        data_to_plot['diff_train'][season_name][predictand_name]  = {key: predictand_train_mps[season_name][key]-y_train_metrics[key] if key != 'std' else predictand_train_mps[season_name][key]/y_train_metrics[key] for key in metrics}
+
+        data_to_plot['mean_test'][season_name][predictand_name]  = predictand_test_mps[season_name]
+        data_to_plot['real_test'][season_name][predictand_name]  = y_test_metrics
+        data_to_plot['diff_test'][season_name][predictand_name]  = {key: predictand_test_mps[season_name][key]-y_test_metrics[key] if key != 'std' else predictand_test_mps[season_name][key]/y_test_metrics[key] for key in metrics}
+
+
 cmap = plt.cm.bwr  # define the colormap
 cmaplist = [cmap(i) for i in range(cmap.N)]
 cmap = LinearSegmentedColormap.from_list(
-    'Custom cmap', cmaplist, cmap.N)
-
-start_time = time.time()
-
-for predictand_name in predictands:
-    # PREDICTAND
-    predictand = utils.getPredictand(DATA_PATH_PREDICTANDS_SAVE, predictand_name, 'tasmean')
-
-    # X and Y Train/Test
-    xTrain, xTest, yTrain, yTest = utils.getTrainTest(predictors, predictand, (('1980-01-01', '2003-12-31'), ('2004-01-01', '2015-12-31')))
-    for season_name, months in seasons.items():
-        y_pred_season = aemet_pred.isel(time= (aemet_pred.time.dt.season == months))
-        y_real_season = yTrain.isel(time= (aemet_pred.time.dt.season == months))
-        y_pred_metrics = utils.getMetricsTemp(y_pred_season)
-        y_real_metrics = utils.getMetricsTemp(y_real_season)
-        mean = (y_pred_metrics['mean']['tasmean'] - y_real_metrics['mean']['tasmean']).data.flatten()
-        std = (y_pred_metrics['std']['tasmean']/y_real_metrics['std']['tasmean']).data.flatten()
-        quantile = (y_pred_metrics['99quantile']['tasmean'] - y_real_metrics['99quantile']['tasmean']).data.flatten()
-        data_to_plot['pred'][season_name][predictand_name]  = y_pred_metrics
-        data_to_plot['real'][season_name][predictand_name]  = y_real_metrics
-        data_to_plot['diff'][season_name][predictand_name]  = {key: y_pred_metrics[key]-y_real_metrics if key != 'std' else y_pred_metrics[key]/y_real_metrics[key] for key in metrics}
-
-    
+    'Custom cmap', cmaplist, cmap.N)  
 for graph_type, seasons_value in data_to_plot.items():
     for metric in metrics: 
         #Cambiar a un diccionario TODO
-        if graph_type != 'diff':
+        if 'diff' not in graph_type:
             if metric == 'over30':
                 v_min = 0
                 v_max = 500
@@ -121,7 +141,7 @@ for graph_type, seasons_value in data_to_plot.items():
 
         plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
         #plt.setp(axes[0, 0].get_ylabel, visible=True)
-        plt.savefig(f'{FIGS_PATH}/intercomparisson_Aemet_{metric}_{graph_type}.pdf')
+        plt.savefig(f'{FIGS_PATH}/intercomparisson_totalMean_{metric}_{graph_type}.pdf')
         plt.close()
 
 total_time = time.time() - start_time

@@ -129,7 +129,7 @@ for season_name, months in seasons.items():
         plt.xlabel('Predictandos')
         plt.ylabel('Valores', rotation= 90)
         plt.subplots_adjust(bottom=0.24)
-        plt.savefig(f'{FIGS_PATH}/boxplots/boxplot_{season_name}_{key}.pdf')
+        plt.savefig(f'{FIGS_PATH}boxplots/boxplot_{season_name}_{key}.pdf')
         plt.close()
 
     print(f"{season_name} boxplot de test hecho!")
@@ -144,7 +144,7 @@ for season_name, months in seasons.items():
         plt.xlabel('Predictandos')
         plt.ylabel('Valores', rotation= 90)
         plt.subplots_adjust(bottom=0.24)
-        plt.savefig(f'{FIGS_PATH}/boxplots/boxplot_{season_name}_{key}.pdf')
+        plt.savefig(f'{FIGS_PATH}boxplots/boxplot_{season_name}_{key}.pdf')
         plt.close()
 
     print(f"{season_name} boxplot de train hecho!")
@@ -156,6 +156,7 @@ cmaplist = [cmap(i) for i in range(cmap.N)]
 cmap = LinearSegmentedColormap.from_list(
     'Custom cmap', cmaplist, cmap.N)
 
+#TODO Hacer funcion que haga lo de abajo
 start_time = time.time()
 for graph_type, seasons_value in data_to_plot.items():
     for metric in metrics: 
@@ -227,7 +228,7 @@ for graph_type, seasons_value in data_to_plot.items():
 
         plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
         #plt.setp(axes[0, 0].get_ylabel, visible=True)
-        plt.savefig(f'{FIGS_PATH}/comparisson_{metric}_{graph_type}.pdf')
+        plt.savefig(f'{FIGS_PATH}predictions/comparisson_{metric}_{graph_type}.pdf')
         plt.close()
 
 total_time = time.time() - start_time
@@ -304,7 +305,7 @@ for graph_type, seasons_value in train_to_plot.items():
 
         plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
         #plt.setp(axes[0, 0].get_ylabel, visible=True)
-        plt.savefig(f'{FIGS_PATH}/comparissonTrain_{metric}_{graph_type}.pdf')
+        plt.savefig(f'{FIGS_PATH}predictions/comparissonTrain_{metric}_{graph_type}.pdf')
         plt.close()
 
 total_time = time.time() - start_time
