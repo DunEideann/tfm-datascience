@@ -14,7 +14,7 @@ predictands = ['E-OBS', 'AEMET_0.25deg', 'Iberia01_v1.0', 'pti-grid', 'CHELSA', 
 
 yPred = {}
 yRealTest = {}
-yTrain = {}
+yTrain_data = {}
 yRealTrain = {}
 # TODO Pasar a archivo unico cosas repetidas
 yearsTrain = ('1980-01-01', '2003-12-31')
@@ -23,10 +23,11 @@ yearsTest = ('2004-01-01', '2015-12-31')
 for predictand_name in predictands:
     # Load Pred
     modelName = f'DeepESD_tas_{predictand_name}'
+    print(modelName)
     yPred[predictand_name] = xr.open_dataset(f'{PREDS_PATH}predTest_{modelName}.nc')
 
     #Load Pred Train
-    yTrain[predictand_name] = xr.open_dataset(f'{PREDS_PATH}predTrain_{modelName}.nc')
+    yTrain_data[predictand_name] = xr.open_dataset(f'{PREDS_PATH}predTrain_{modelName}.nc')
 
     # Load Real Data
     file_name = utils.getFileName(DATA_PATH_PREDICTANDS_SAVE, predictand_name, keyword = 'tasmean')
@@ -72,7 +73,7 @@ for predictand_name in predictands:
 
 print("Predictandos cargados")
 
-metrics = ['mean', 'std', '99quantile', 'over30', 'over40']
+metrics = ['mean', 'std', '99quantile', 'over30', 'over40', 'mean_max_mean']
 box_metrics = ['mean', 'std', '99quantile']
 plot_metrics = ['pred', 'real', 'diff']
 seasons = {'spring': 'MAM', 'summer': 'JJA', 'autumn': 'SON', 'winter': 'DJF'}
@@ -89,8 +90,8 @@ for season_name, months in seasons.items():
     for predictand_name in predictands:
         y_test_season = yRealTest[predictand_name].isel(time = (yPred[predictand_name].time.dt.season == months))
         y_pred_season = yPred[predictand_name].isel(time = (yPred[predictand_name].time.dt.season == months))
-        y_train_season = yRealTrain[predictand_name].isel(time = (yPred[predictand_name].time.dt.season == months))
-        y_pred_train_season = yTrain[predictand_name].isel(time= (yPred[predictand_name].time.dt.season == months))
+        y_train_season = yRealTrain[predictand_name].isel(time = (yRealTrain[predictand_name].time.dt.season == months))
+        y_pred_train_season = yTrain_data[predictand_name].isel(time= (yRealTrain[predictand_name].time.dt.season == months))
         y_test_metrics = utils.getMetricsTemp(y_test_season)#, mask=maskToUse)
         y_pred_metrics = utils.getMetricsTemp(y_pred_season)#, mask=maskToUse)
         y_train_metrics = utils.getMetricsTemp(y_train_season)
@@ -131,7 +132,7 @@ for season_name, months in seasons.items():
         plt.savefig(f'{FIGS_PATH}/boxplots/boxplot_{season_name}_{key}.pdf')
         plt.close()
 
-    print(f"{season_name} boxplot de testhecho!")
+    print(f"{season_name} boxplot de test hecho!")
 
     for key, value in train_to_box.items():
         to_plot = [value[season_name][name] for name in names]
@@ -146,24 +147,12 @@ for season_name, months in seasons.items():
         plt.savefig(f'{FIGS_PATH}/boxplots/boxplot_{season_name}_{key}.pdf')
         plt.close()
 
-    print(f"{season_name} boxplot de testhecho!")
+    print(f"{season_name} boxplot de train hecho!")
 
 
-# intervalos = [0, 5, 10, 15, 20, 25, 30, 35]  # Define los límites de los intervalos de colores discretos
-# colores_discretos = plt.cm.Spectral(np.linspace(0, 1, len(intervalos) - 1))  # Colores discretos del mapa 'Spectral'
-# cmap_discreto = ListedColormap(colores_discretos)
-# norm = plt.Normalize(vmin=min(intervalos), vmax=max(intervalos))
 
-cmap = plt.cm.jet  # define the colormap
-# extract all colors from the .jet map
+cmap = plt.cm.bwr  # define the colormap
 cmaplist = [cmap(i) for i in range(cmap.N)]
-# force the first color entry to be grey
-#cmaplist[0] = (.5, .5, .5, 1.0)
-
-# define the bins and normalize
-
-
-# create the new map
 cmap = LinearSegmentedColormap.from_list(
     'Custom cmap', cmaplist, cmap.N)
 
@@ -315,7 +304,7 @@ for graph_type, seasons_value in train_to_plot.items():
 
         plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
         #plt.setp(axes[0, 0].get_ylabel, visible=True)
-        plt.savefig(f'{FIGS_PATH}/comparisson_{metric}_{graph_type}.pdf')
+        plt.savefig(f'{FIGS_PATH}/comparissonTrain_{metric}_{graph_type}.pdf')
         plt.close()
 
 total_time = time.time() - start_time

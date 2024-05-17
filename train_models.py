@@ -71,15 +71,11 @@ predictand = utils.checkCorrectData(predictand) # Transform coordinates and dime
 
 predictand = utils.checkIndex(predictand)
 predictand = utils.checkUnitsTempt(predictand, 'tasmean')
-
-#predictand = predictand.sel(lon=LON_SLICE, lat=LAT_SLICE) # Tomamos solo los datos de iberia del predictando
-
 predictors = predictors.reindex(lat=list(reversed(predictors.lat))) # Reordenamos la latitud del predictor para que tenga el mismo orden del predictando
 
 #Preparamos datos para entrenamiento
 # Remove days with nans in the predictor
 predictors = utils.removeNANs(grid=predictors)
-#predictand = utils.removeNANs(grid=predictand)
 
 # Align both datasets in time
 predictand=predictand.assign_coords({'time': predictand.indexes['time'].normalize()})
@@ -214,18 +210,19 @@ yPredTest = utils.predDataset(X=xTestStand_array,
                               var='tasmean')
 
 yPredTest.to_netcdf(f'{PREDS_PATH}predTest_{modelName}.nc')
+import time
 
+time.sleep(3)
 # Compure predictions on the train set
-yPredTest = utils.predDataset(X=xTrainStand_array,
+yPredTrain = utils.predDataset(X=xTrainStand_array,
                               model=model,
                               device='cpu',
                               ref=yTrainUnflatten,
                               flattener=maskToUse,
                               var='tasmean')
 
-yPredTest.to_netcdf(f'{PREDS_PATH}predTrain_{modelName}.nc')
-# modelName = f'DeepESD_tas_{PREDICTAND_NAME}' 
-# yPredTest = xr.open_dataset(f'{PREDS_PATH}predTest_{modelName}.nc')
+yPredTrain.to_netcdf(f'{PREDS_PATH}predTrain_{modelName}.nc')
+
 
 # Calculate metrics and save graphs
 for season_name, months in {'spring': 'MAM', 'summer': 'JJA', 'autumn': 'SON', 'winter': 'DJF'}.items():

@@ -45,11 +45,20 @@ def getMetricsTemp(data):#, mask=None):
     #over30 = filterByMask(mask=mask, data=over30_prep, var='tasmean').sum(dim='time')
     over40 = data['tasmean'].where(data['tasmean'] >= 40).sum(dim='time', skipna=False).to_dataset(name='tasmean')
     #over40 = filterByMask(mask=mask, data=over40_prep, var='tasmean').sum(dim='time')
+    mean_max_mean = data.resample(time = 'YE').max(dim='time').mean(dim='time')
 
     #over30 = data['tasmean'].where(data['tasmean'] >= 30 and data['tasmean'] != None).sum(dim='time', keep_attrs='all', skipna=True).to_dataset(name='tasmean')
     #over40 = data['tasmean'].where(data['tasmean'] >= 40 and data['tasmean'] != None).sum(dim='time', keep_attrs='all', skipna=True).to_dataset(name='tasmean')
 
-    return {'mean': val_mean, '99quantile': val_99, 'std': val_st, 'trend': val_mean_annual, 'over30': over30, 'over40': over40}
+    return {
+        'mean': val_mean,
+        '99quantile': val_99,
+        'std': val_st,
+        'trend': val_mean_annual,
+        'over30': over30,
+        'over40': over40,
+        'mean_max_mean': mean_max_mean
+        }
 
 def __graphTrend(metrics, season_name, folder_path, pred_name, extra = ''):
     """_summary_
@@ -897,3 +906,44 @@ def predDataset(X, model, device, flattener, var, ref = None):
 
     return yPred
 
+def getPredictand(data_path, name, var):
+    file_name = getFileName(data_path, name, keyword = var)
+    predictand_path = f'{data_path}{name}/{file_name}'
+    predictand = xr.open_dataset(predictand_path,
+                                chunks=-1) # Near surface air temperature (daily mean)
+    predictand = checkCorrectData(predictand) # Transform coordinates and dimensions if necessary
+
+    predictand = checkIndex(predictand)
+    predictand = checkUnitsTempt(predictand, var)
+    predictand = predictand.assign_coords({'time': predictand.indexes['time'].normalize()})
+
+    return predictand
+
+def getPredictos(data_path):
+    predictors_vars = ['t500', 't700', 't850', # Air temperature at 500, 700, 850 hPa
+    'q500', 'q700', 'q850', # Specific humidity at 500, 700, 850 hPa
+    'v500', 'v700', 'v850', # Meridional wind component at 500, 700, 850 hPa
+    'u500', 'u700', 'u850', # Zonal wind component at 500, 700, 850 hPa
+    'msl']
+    data_predictors = []
+    for var in predictors_vars:
+        data_predictors.append(xr.open_dataset(f'{data_path}/{var}_ERA5.nc'))
+    predictors = xr.merge(data_predictors)
+    predictors = predictors.reindex(lat=list(reversed(predictors.lat))) 
+
+    return predictors
+
+def getTrainTest(predictors, predictand, years):
+    y, x = alignDatasets(grid1=predictand, grid2=predictor, coord='time')
+
+    # Split into train and test set
+    yearsTrain = years[0]
+    yearsTest = years[1]
+
+    xTrain = x.sel(time=slice(*yearsTrain)).load()
+    xTest = x.sel(time=slice(*yearsTest)).load()
+
+    yTrain = y.sel(time=slice(*yearsTrain)).load()
+    yTest = y.sel(time=slice(*yearsTest)).load()
+
+    return xTrain, xTest, yTrain, yTest
