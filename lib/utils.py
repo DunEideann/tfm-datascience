@@ -42,8 +42,10 @@ def getMetricsTemp(data):#, mask=None):
     val_st = data.std(dim = 'time')
     val_99 = data.quantile(0.99, dim = 'time')
     over30 = data['tasmean'].where(data['tasmean'] >= 30).sum(dim='time').to_dataset(name='tasmean')
+    over30 = over30.where(over30 != 0, np.nan)
     #over30 = filterByMask(mask=mask, data=over30_prep, var='tasmean').sum(dim='time')
-    over40 = data['tasmean'].where(data['tasmean'] >= 40).sum(dim='time', skipna=False).to_dataset(name='tasmean')
+    over40 = data['tasmean'].where(data['tasmean'] >= 40).sum(dim='time').to_dataset(name='tasmean')
+    over40 = over40.where(over40 != 0, np.nan)
     #over40 = filterByMask(mask=mask, data=over40_prep, var='tasmean').sum(dim='time')
     mean_max_mean = data.resample(time = 'YE').max(dim='time').mean(dim='time')
 
@@ -976,7 +978,7 @@ def maskData(var, objective, secondGrid=None, grid = None, path = None, to_slice
     objectiveFlat_array = toArray(objectiveFlat)
     objectiveFlat[var].values = objectiveFlat_array
     objectiveUnflatten = baseMask.unFlatten(grid=objectiveFlat, var=var)
-
+    
     if np.isnan(objectiveUnflatten).sum() > 0:
         secondMask = obtainMask(grid = secondGrid, var = var)
         secondFlat = secondMask.flatten(grid=objectiveUnflatten, var=var)

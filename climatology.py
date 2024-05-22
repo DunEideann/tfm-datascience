@@ -25,6 +25,7 @@ data_to_plot = {metric: {season_name: {predictand_name: None for predictand_name
 
 for predictand_name in predictands:
     predictand = utils.getPredictand(DATA_PATH_PREDICTANDS_SAVE, predictand_name, 'tasmean')
+    predictand = predictand.sel(time=slice(*(yearsTrain[0], yearsTest[1])))
     predictand = utils.maskData(
         path = f'{DATA_PATH_PREDICTANDS_SAVE}AEMET_0.25deg/AEMET_0.25deg_tasmean_1951-2022.nc',
         var='tasmean',
@@ -40,7 +41,7 @@ for predictand_name in predictands:
         y_test_season = yTest.isel(time= (yTest.time.dt.season == months))
         y_train_metrics = utils.getMetricsTemp(y_train_season)
         y_test_metrics = utils.getMetricsTemp(y_test_season)
-        y_metrics = utils.getMetricsTemp(predictand.sel(time=slice(*(yearsTrain[0], yearsTest[1]))).load())
+        y_metrics = utils.getMetricsTemp(predictand.sel(time=slice(*(yearsTrain[0], yearsTrain[1]))).load())
         data_to_plot['train'][season_name][predictand_name] = y_train_metrics
         data_to_plot['test'][season_name][predictand_name] = y_test_metrics
         data_to_plot['whole'][season_name][predictand_name] = y_metrics
