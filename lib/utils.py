@@ -273,7 +273,7 @@ def getFileName(data_path, target_name, keyword):
             break
     return file_name
 
-def loadGcm(gcm, scenario, gcm_path):
+def loadGcm(gcm, scenario, to_slice, gcm_path):
     """_summary_
 
     Args:
@@ -290,10 +290,8 @@ def loadGcm(gcm, scenario, gcm_path):
     else:
         gcm_run = 'r1i1p1f1'
 
-    if scenario == 'historical':
-        years = '19500101-20141231'
-    else:
-        years = '20150101-21001231'
+    years_1 = '19500101-20141231'
+    years_2 = '20150101-21001231'
 
     vars_mapping = {'ta': 't',
                     'hus': 'q',
@@ -307,7 +305,9 @@ def loadGcm(gcm, scenario, gcm_path):
 
     varsData = []
     for var in vars_mapping.keys():
-        data = xr.open_dataset(f'{gcm_path}/{var}_{gcm}_{scenario}_{gcm_run}_{years}.nc')
+        data_1 = xr.open_dataset(f'{gcm_path}/{var}_{gcm}_historical_{gcm_run}_{years_1}.nc')
+        data_2 = xr.open_dataset(f'{gcm_path}/{var}_{gcm}_{scenario}_{gcm_run}_{years_2}.nc')
+        data = xr.merge([data_1, data_2]).sel(time=slice(*to_slice))
         data = data.drop_dims('bnds')
 
         if var not in ('psl'):
@@ -325,6 +325,7 @@ def loadGcm(gcm, scenario, gcm_path):
 
     predictor_gcm = xr.merge(varsData)
     predictor_gcm = predictor_gcm.assign_coords({'time': predictor_gcm.indexes['time'].normalize()})
+
 
     return predictor_gcm
 
@@ -987,3 +988,34 @@ def maskData(var, objective, secondGrid=None, grid = None, path = None, to_slice
         objectiveUnflatten = secondMask.unFlatten(grid=secondFlat, var=var)
 
     return objectiveUnflatten
+
+
+def biasYear_x(yTest, yPred, var = None, season_months=None):
+    
+    if season_months != None:
+        yTest = yTest.isel(time=(yTest.time.dt.season == season_months))
+        yPred = yPred.isel(time=(yPred.time.dt.season == season_months))
+    
+    yTest = yTest.groupby('time.year').max('time')
+    yPred = yPred.groupby('time.year').max('time')    
+    metric = (yPred.mean('year') - yTest.mean('year'))   
+
+    return metric
+
+def getMontlyMetrics(data, to_slice):
+
+    if to_slice != None:
+        data = data.sel(time=slice(*to_slice))
+
+    data = data.groupby('time.month')
+    mean = data.mean()
+    std = data.std()
+
+    return mean, std
+
+def standarBiasCorrection(dataset, hist_metric, future_metric, observational_metric):
+
+    for mes in range(1, 13):
+        
+
+    return dataset_corrected

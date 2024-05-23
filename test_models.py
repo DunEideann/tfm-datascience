@@ -19,8 +19,12 @@ GCM_NAME = sys.argv[2]
 #GCM_NAME = 'EC-Earth3-Veg'
 
 # Listado de escenarios a predecir
-scenarios = ['ssp126', 'ssp245', 'ssp370', 'ssp585']
-
+scenarios = ['ssp370']#['ssp126', 'ssp245', 'ssp370', 'ssp585']
+main_scenerio = 'ssp370'
+historical = ('1980-01-01', '2015-12-31')
+future_1 = ('2016-01-01', '2040-12-31')
+future_2 = ('2041-01-01', '2070-12-31')
+future_3 = ('2071-01-01', '2100-12-31') 
 
 # Cargamos los datos del dataset
 file_name = utils.getFileName(DATA_PATH_PREDICTANDS_SAVE, MODEL_NAME, keyword = 'tasmean')
@@ -47,7 +51,7 @@ baseMask = utils.obtainMask(
 for scenario in scenarios:
     #scenario = 'ssp126'
     #Cargamos DATASET PREDICTORES Y PREPARAMOS DATOS
-    predictor = utils.loadGcm(GCM_NAME, scenario, DATA_PATH_PREDICTORS)
+    predictor = utils.loadGcm(GCM_NAME, scenario, (historical[0], future_3[1]), DATA_PATH_PREDICTORS)
     print("Predictor 1:")
     print(predictor)
     # Align both datasets in time
