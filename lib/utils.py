@@ -231,7 +231,7 @@ def getGraphsTempGCM(pred_metrics, scenario, folder_path, pred_name, model_name)
         plt.clim(vmin, vmax)# AGREGADO PARA LEYENDA
 
         plt.tight_layout()
-        plt.savefig(f'{folder_path}{pred_name}/prediction_{scenario}_{key}.pdf')
+        plt.savefig(f'{folder_path}{pred_name}_pred_{model_name}/prediction_{scenario}_{key}.pdf')
         plt.close()
 
 def checkIndex(dataset):
@@ -1002,7 +1002,7 @@ def biasYear_x(yTest, yPred, var = None, season_months=None):
 
     return metric
 
-def getMontlyMetrics(data, to_slice):
+def getMontlyMetrics(data, to_slice = None):
 
     if to_slice != None:
         data = data.sel(time=slice(*to_slice))
@@ -1011,11 +1011,55 @@ def getMontlyMetrics(data, to_slice):
     mean = data.mean()
     std = data.std()
 
-    return mean, std
+    return {'mean': mean, 'std': std}
+
+def __operationStandarBias(data, hist_metric, future_metric, observational_metric, mes):
+    future_mean = future_metric['mean'].sel(month=mes)
+    hist_mean = hist_metric['mean'].sel(month=mes)
+    observational_mean = observational_metric['mean'].sel(month=mes)
+    hist_std = hist_metric['std'].sel(month=mes)
+    observational_std = observational_metric['std'].sel(month=mes)
+    delta = future_mean - hist_mean
+    result = (data - delta - hist_mean)*(observational_std/hist_std) + observational_mean + delta
+
+    return result
 
 def standarBiasCorrection(dataset, hist_metric, future_metric, observational_metric):
 
+    dataset_corrected = dataset.copy(deep=True)
     for mes in range(1, 13):
+        datos_mes = dataset.sel(time=dataset['time'].dt.month == mes)
         
+        for var in dataset.keys():
+            dataset_corrected[var][dataset_corrected.time.dt.month == mes] = __operationStandarBias(
+                dataset.sel(time=dataset.time.dt.month == mes),
+                hist_metric,
+                future_metric,
+                observational_metric, 
+                mes)[var]
 
     return dataset_corrected
+
+def scalingDeltaCorrection(grid, refHist, refObs):    
+    '''
+    Perform a scaling delta mapping following https://gmd.copernicus.org/preprints/gmd-2022-57/    @grid: Dataset to correct (GCM predictors)
+    @refHist: Historical predictors (GCM predictors on historial period)
+    @refObs: Observational predictors
+    '''    
+    gridAux = grid.copy(deep=True)
+    refHistAux = refHist.copy(deep=True)
+    refObsAux = refObs.copy(deep=True)    
+    for month in range(1, 12+1):        # Compute monthly means and standard deviations
+        refHist_monthMean = refHistAux.sel(time=refHistAux.time.dt.month.isin(month)).mean('time')
+        refObs_monthMean = refObsAux.sel(time=refObsAux.time.dt.month.isin(month)).mean('time')
+        grid_monthMean = gridAux.sel(time=gridAux.time.dt.month.isin(month)).mean('time')        
+        refHist_monthSD = refHistAux.sel(time=refHistAux.time.dt.month.isin(month)).std('time')
+        refObs_monthSD = refObsAux.sel(time=refObsAux.time.dt.month.isin(month)).std('time')        # Select data from a specific month
+        grid_month = gridAux.sel(time=gridAux.time.dt.month.isin(month))        # Perform the correction
+        seasonalDelta = grid_monthMean - refHist_monthMean
+        grid_month = ((((grid_month - seasonalDelta -  refHist_monthMean)/refHist_monthSD) * \
+                        refObs_monthSD) + refObs_monthMean + seasonalDelta)        # Iterate over vars and assign the value to the grid dataset
+        for var in grid.keys():
+            gridAux[var][gridAux.time.dt.month.isin(month)] = grid_month[var]    
+    
+    return gridAux
