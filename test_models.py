@@ -142,8 +142,8 @@ for scenario in scenarios:
         #names = []
         #predictand_name = 'E-OBS'
         for predictand_name in predictands:
-            y_pred_season = yPredLoaded[scenario].isel(time = (yPredLoaded[scenario][predictand_name].time.dt.season == months))
-            y_hist_season = era5_predictor[predictand_name].isel(time = (era5_predictor[predictand_name].time.dt.season == months))
+            y_pred_season = yPredLoaded[scenario].isel(time = (yPredLoaded[scenario].time.dt.season == months))
+            y_hist_season = era5_predictor.isel(time = (era5_predictor.time.dt.season == months))
             y_pred_metrics = utils.getMetricsTemp(y_pred_season)#, mask=maskToUse)
             y_hist_metrics = utils.getMetricsTemp(y_hist_season)#, mask=maskToUse)
 
