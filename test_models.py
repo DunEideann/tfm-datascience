@@ -31,7 +31,7 @@ future_3 = ('2071-01-01', '2100-12-31')
 predictand = utils.getPredictand(DATA_PATH_PREDICTANDS_SAVE, MODEL_NAME, 'tasmean')
 # Split into train and test set
 yearsTrain = ('1980-01-01', '2003-12-31')
-yearsTest = ('2004-01-01', '2015-12-31')
+yearsTest = ('2004-01-01', '2014-12-31')
 
 # Creamos la mascara a usar
 baseMask = utils.obtainMask(
@@ -45,13 +45,13 @@ yFlat['tasmean'].values = yFlat_array
 yUnflatten = baseMask.unFlatten(grid=yFlat, var='tasmean')
 
 era5_predictor = utils.getPredictors(DATA_PREDICTORS_TRANSFORMED)
-era5_predictor = era5_predictor.sel(time=slice(*(yearsTrain[0], yearsTest[1])))
+era5_predictor = era5_predictor.sel(time=slice(*(historical[0], historical[1])))
 
 for scenario in scenarios:
     #scenario = 'ssp126'
     #Cargamos DATASET PREDICTORES Y PREPARAMOS DATOS
     predictor = utils.loadGcm(GCM_NAME, scenario, (historical[0], future_3[1]), DATA_PATH_PREDICTORS)
-    hist_predictor = predictor.sel(time=slice(*(yearsTrain[0], yearsTest[1])))
+    hist_predictor = predictor.sel(time=slice(*(historical[0], historical[1])))
     future_predictor = predictor.sel(time=slice(*(future_1[0], future_1[1])))
 
     start_time = time.time()
@@ -127,3 +127,36 @@ for scenario in scenarios:
 
 
 print("Terminado con exito!")
+
+metrics = ['mean', 'std', '99quantile', 'over30', 'over40', 'mean_max_mean']
+seasons = {'spring': 'MAM', 'summer': 'JJA', 'autumn': 'SON', 'winter': 'DJF'}
+plot_metrics = ['pred', 'hist', 'diff']
+predictands = [MODEL_NAME]
+
+data_to_plot = {metric: {season_name: {predictand_name: None for predictand_name in predictands} for season_name in seasons.keys()} for metric in plot_metrics}
+
+
+for scenario in scenarios:
+    for season_name, months in seasons.items():
+        #months = 'MAM'
+        #names = []
+        #predictand_name = 'E-OBS'
+        for predictand_name in predictands:
+            y_pred_season = yPredLoaded[scenario].isel(time = (yPredLoaded[scenario][predictand_name].time.dt.season == months))
+            y_hist_season = era5_predictor[predictand_name].isel(time = (era5_predictor[predictand_name].time.dt.season == months))
+            y_pred_metrics = utils.getMetricsTemp(y_pred_season)#, mask=maskToUse)
+            y_hist_metrics = utils.getMetricsTemp(y_hist_season)#, mask=maskToUse)
+
+            data_to_plot['pred'][season_name][predictand_name] = y_pred_metrics
+            data_to_plot['hist'][season_name][predictand_name] = y_hist_metrics
+            data_to_plot['diff'][season_name][predictand_name] = {key: y_pred_metrics[key]-y_hist_metrics if key != 'std' else y_pred_metrics[key]/y_hist_metrics[key] for key in metrics}
+            #names.append(predictand_name)
+
+    print(f"{season_name} metricas cargadas!")
+
+
+values = {'diff': {'over30': (-50, 50), 'over40': (-10, 10), 'std': (0, 10), 'else': (-5, 5)},
+          'noDiff': {'over30': (0, 500), 'over40': (0, 30), 'std': (0, 2.5), 'else': (-5, 45)}}
+
+for scenario in scenarios:
+    utils.multiMapPerSeason(data_to_plot[scenario], metrics, FIGS_PATH, values)
