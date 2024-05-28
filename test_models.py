@@ -20,12 +20,13 @@ MODEL_NAME = 'E-OBS'
 GCM_NAME = 'EC-Earth3-Veg'
 
 # Listado de escenarios a predecir
-scenarios = ['ssp370']#['ssp126', 'ssp245', 'ssp370', 'ssp585']
+scenarios = ['ssp126', 'ssp245', 'ssp370', 'ssp585']
 main_scenerio = 'ssp370'
-historical = ('1980-01-01', '2014-12-31')
-future_1 = ('2015-01-01', '2040-12-31')
-future_2 = ('2041-01-01', '2070-12-31')
-future_3 = ('2071-01-01', '2100-12-31') 
+hist_reference = ('1980-01-01', '2014-12-31')
+hist_baseline = ('1995-01-01', '2014-12-31') #95-14
+future_1 = ('2021-01-01', '2040-12-31')
+future_2 = ('2041-01-01', '2060-12-31')
+future_3 = ('2081-01-01', '2100-12-31') 
 
 # Cargamos los datos del dataset
 predictand = utils.getPredictand(DATA_PATH_PREDICTANDS_SAVE, MODEL_NAME, 'tasmean')
@@ -45,118 +46,76 @@ yFlat['tasmean'].values = yFlat_array
 yUnflatten = baseMask.unFlatten(grid=yFlat, var='tasmean')
 
 era5_predictor = utils.getPredictors(DATA_PREDICTORS_TRANSFORMED)
-era5_predictor = era5_predictor.sel(time=slice(*(historical[0], historical[1])))
+era5_predictor = era5_predictor.sel(time=slice(*(hist_reference[0], hist_reference[1])))
 
-for scenario in scenarios:
-    #scenario = 'ssp126'
-    #Cargamos DATASET PREDICTORES Y PREPARAMOS DATOS
-    predictor = utils.loadGcm(GCM_NAME, scenario, (historical[0], future_3[1]), DATA_PATH_PREDICTORS)
-    hist_predictor = predictor.sel(time=slice(*(historical[0], historical[1])))
-    future_predictor = predictor.sel(time=slice(*(future_1[0], future_1[1])))
+for future in [hist_baseline, future_1, future_2, future_3]:
+    for scenario in scenarios:
+        #scenario = 'ssp126'
+        #Cargamos DATASET PREDICTORES Y PREPARAMOS DATOS
+        predictor = utils.loadGcm(GCM_NAME, scenario, (hist_reference[0], future_3[1]), DATA_PATH_PREDICTORS)
+        hist_predictor = predictor.sel(time=slice(*(hist_reference[0], hist_reference[1])))
+        future_predictor = predictor.sel(time=slice(*(future[0], future[1])))
 
-    start_time = time.time()
-    hist_metric = utils.getMontlyMetrics(hist_predictor)
-    future_metric = utils.getMontlyMetrics(future_predictor)
-    era5_metric = utils.getMontlyMetrics(era5_predictor)
+        start_time = time.time()
+        hist_metric = utils.getMontlyMetrics(hist_predictor)
+        future_metric = utils.getMontlyMetrics(future_predictor)
+        era5_metric = utils.getMontlyMetrics(era5_predictor)
 
-    target_predictor = predictor.sel(time=slice(*(future_1[0], future_1[1])))
-    target_predictor = utils.standarBiasCorrection(
-        target_predictor,
-        hist_metric,
-        future_metric,
-        era5_metric)
+        target_predictor = predictor.sel(time=slice(*(future[0], future[1])))
+        target_predictor = utils.standarBiasCorrection(
+            target_predictor,
+            hist_metric,
+            future_metric,
+            era5_metric)
 
-    print(target_predictor)
-    total_time = time.time() - start_time
-    print(f"Primer escalado: {total_time:.2f} segundos.")
+        print(target_predictor)
+        total_time = time.time() - start_time
+        print(f"Primer escalado: {total_time:.2f} segundos.")
 
-    start_time = time.time()
-    target_predictor2 = utils.scalingDeltaCorrection(future_predictor, hist_predictor, era5_predictor)
-    print(target_predictor2)
-    total_time = time.time() - start_time
-    print(f"Segundo escalado: {total_time:.2f} segundos.")
+        # start_time = time.time()
+        # target_predictor2 = utils.scalingDeltaCorrection(future_predictor, hist_predictor, era5_predictor)
+        # print(target_predictor2)
+        # total_time = time.time() - start_time
+        # print(f"Segundo escalado: {total_time:.2f} segundos.")
 
-    
+        
 
-    # Standardize the predictor
-    meanTrain = target_predictor.mean('time')
-    stdTrain = target_predictor.std('time')
-    xStand = (target_predictor - meanTrain) / stdTrain
-    # Extract the raw data from the xarray Dataset
-    xStand_array = utils.toArray(xStand)
-    print("Forma de xStand y yFlat arrays")
-    print(xStand_array.shape)
-    print(yFlat_array.shape)
+        # Standardize the predictor
+        meanTrain = target_predictor.mean('time')
+        stdTrain = target_predictor.std('time')
+        xStand = (target_predictor - meanTrain) / stdTrain
+        # Extract the raw data from the xarray Dataset
+        xStand_array = utils.toArray(xStand)
+        print("Forma de xStand y yFlat arrays")
+        print(xStand_array.shape)
+        print(yFlat_array.shape)
 
-    # Cargamos el modelo
-    modelName = f'DeepESD_tas_{MODEL_NAME}' 
-    model = models.DeepESD(spatial_x_dim=xStand_array.shape[2:],
-                        out_dim=yFlat_array.shape[1],
-                        channelsInputLayer=xStand_array.shape[1],
-                        channelsLastLayer=10)
+        # Cargamos el modelo
+        modelName = f'DeepESD_tas_{MODEL_NAME}' 
+        model = models.DeepESD(spatial_x_dim=xStand_array.shape[2:],
+                            out_dim=yFlat_array.shape[1],
+                            channelsInputLayer=xStand_array.shape[1],
+                            channelsLastLayer=10)
 
-    # Load the model state dictionary from a file
-    checkpoint = torch.load(f'{MODELS_PATH}/DeepESD_tas_{MODEL_NAME}.pt')
-    model.load_state_dict(checkpoint)
+        # Load the model state dictionary from a file
+        checkpoint = torch.load(f'{MODELS_PATH}/DeepESD_tas_{MODEL_NAME}.pt')
+        model.load_state_dict(checkpoint)
 
-    # Realizamos la prediccion
-    # Compute predictions on the test set
-    # Transformacion de coordenada time de yUnflatten
-    yUnflatten = yUnflatten.reindex(time=target_predictor.time, fill_value=np.nan)
-    #yUnflatten = yUnflatten.resample(time=target_predictor.time)
+        # Realizamos la prediccion
+        # Compute predictions on the test set
+        # Transformacion de coordenada time de yUnflatten
+        yUnflatten = yUnflatten.reindex(time=target_predictor.time, fill_value=np.nan)
+        #yUnflatten = yUnflatten.resample(time=target_predictor.time)
 
-    print("yUnflatten")
-    print(yUnflatten) # Transformar tiempos a los mismos de GCM
-    yPred = utils.predDataset(X=xStand_array,
-                                model=model,
-                                device='cpu',
-                                ref=yUnflatten,
-                                flattener=baseMask,
-                                var='tasmean')
+        print("yUnflatten")
+        print(yUnflatten) # Transformar tiempos a los mismos de GCM
+        yPred = utils.predDataset(X=xStand_array,
+                                    model=model,
+                                    device='cpu',
+                                    ref=yUnflatten,
+                                    flattener=baseMask,
+                                    var='tasmean')
 
-    yPred.to_netcdf(f'{PREDS_PATH}predGCM_{modelName}_{GCM_NAME}_{scenario}.nc')
-
-
-# Cargamos Predicciones a escenarios
-yPredLoaded = {}
-yPredMetrics = {}
-for scenario in scenarios:
-    yPredLoaded[scenario] = xr.open_dataset(f'{PREDS_PATH}predTest_{modelName}_{GCM_NAME}_{scenario}.nc')
-    yPredMetrics[scenario] = utils.getMetricsTemp(yPredLoaded[scenario]) # CARGAMOS METRICAS
-    utils.getGraphsTempGCM(yPredMetrics[scenario], scenario, FIGS_PATH, GCM_NAME, MODEL_NAME)# REALIZAMOS GRAFICOS COMPARATIVOS
+        yPred.to_netcdf(f'{PREDS_PATH}predGCM_{modelName}_{GCM_NAME}_{scenario}_{future[0]}-{future[1]}.nc')
 
 
-print("Terminado con exito!")
-
-metrics = ['mean', 'std', '99quantile', 'over30', 'over40', 'mean_max_mean']
-seasons = {'spring': 'MAM', 'summer': 'JJA', 'autumn': 'SON', 'winter': 'DJF'}
-plot_metrics = ['pred', 'hist', 'diff']
-predictands = [MODEL_NAME]
-
-data_to_plot = {metric: {season_name: {predictand_name: None for predictand_name in predictands} for season_name in seasons.keys()} for metric in plot_metrics}
-
-
-for scenario in scenarios:
-    for season_name, months in seasons.items():
-        #months = 'MAM'
-        #names = []
-        #predictand_name = 'E-OBS'
-        for predictand_name in predictands:
-            y_pred_season = yPredLoaded[scenario].isel(time = (yPredLoaded[scenario].time.dt.season == months))
-            y_hist_season = era5_predictor.isel(time = (era5_predictor.time.dt.season == months))
-            y_pred_metrics = utils.getMetricsTemp(y_pred_season)#, mask=maskToUse)
-            y_hist_metrics = utils.getMetricsTemp(y_hist_season)#, mask=maskToUse)
-
-            data_to_plot['pred'][season_name][predictand_name] = y_pred_metrics
-            data_to_plot['hist'][season_name][predictand_name] = y_hist_metrics
-            data_to_plot['diff'][season_name][predictand_name] = {key: y_pred_metrics[key]-y_hist_metrics if key != 'std' else y_pred_metrics[key]/y_hist_metrics[key] for key in metrics}
-            #names.append(predictand_name)
-
-    print(f"{season_name} metricas cargadas!")
-
-
-values = {'diff': {'over30': (-50, 50), 'over40': (-10, 10), 'std': (0, 10), 'else': (-5, 5)},
-          'noDiff': {'over30': (0, 500), 'over40': (0, 30), 'std': (0, 2.5), 'else': (-5, 45)}}
-
-for scenario in scenarios:
-    utils.multiMapPerSeason(data_to_plot[scenario], metrics, FIGS_PATH, values)

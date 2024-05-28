@@ -1014,12 +1014,8 @@ def getMontlyMetrics(data, to_slice = None):
 
     return {'mean': mean, 'std': std}
 
-def __operationStandarBias(data, hist_metric, future_metric, observational_metric, mes):
-    future_mean = future_metric['mean'].sel(month=mes)
-    hist_mean = hist_metric['mean'].sel(month=mes)
-    observational_mean = observational_metric['mean'].sel(month=mes)
-    hist_std = hist_metric['std'].sel(month=mes)
-    observational_std = observational_metric['std'].sel(month=mes)
+def __operationStandarBias(data, hist_mean, hist_std, future_mean, observational_mean, observational_std, mes):
+
     delta = future_mean - hist_mean
     result = (data - delta - hist_mean)*(observational_std/hist_std) + observational_mean + delta
 
@@ -1027,16 +1023,22 @@ def __operationStandarBias(data, hist_metric, future_metric, observational_metri
 
 def standarBiasCorrection(dataset, hist_metric, future_metric, observational_metric):
 
+    future_mean = future_metric['mean']
+    hist_mean = hist_metric['mean']
+    observational_mean = observational_metric['mean']
+    hist_std = hist_metric['std']
+    observational_std = observational_metric['std']
+
     dataset_corrected = dataset.copy(deep=True)
-    for mes in range(1, 13):
-        datos_mes = dataset.sel(time=dataset['time'].dt.month == mes)
-        
+    for mes in range(1, 13):        
         for var in dataset.keys():
             dataset_corrected[var][dataset_corrected.time.dt.month == mes] = __operationStandarBias(
                 dataset.sel(time=dataset.time.dt.month == mes),
-                hist_metric,
-                future_metric,
-                observational_metric, 
+                hist_mean.sel(month=mes),
+                hist_std.sel(month=mes),
+                future_mean.sel(month=mes),
+                observational_mean.sel(month=mes),
+                observational_std.sel(month=mes),
                 mes)[var]
 
     return dataset_corrected
