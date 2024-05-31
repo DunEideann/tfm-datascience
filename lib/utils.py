@@ -9,6 +9,7 @@ from scipy import signal, stats
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 from matplotlib.colors import ListedColormap, BoundaryNorm, LinearSegmentedColormap
+import time
 
 
 def checkUnitsTempt(data, var):
@@ -29,7 +30,7 @@ def checkUnitsTempt(data, var):
     return data
     
 
-def getMetricsTemp(data):#, mask=None):
+def getMetricsTemp(data, var = None):#, mask=None):
     """_summary_
 
     Args:
@@ -38,14 +39,16 @@ def getMetricsTemp(data):#, mask=None):
     Returns:
         _type_: _description_
     """
+    if var == None:
+        var = 'tasmean'
     val_mean = data.mean(dim = 'time')
     val_mean_annual = data.resample(time = 'YE').mean()
     val_st = data.std(dim = 'time')
     val_99 = data.quantile(0.99, dim = 'time')
-    over30 = data['tasmean'].where(data['tasmean'] >= 30).sum(dim='time').to_dataset(name='tasmean')
+    over30 = data[var].where(data[var] >= 30).sum(dim='time').to_dataset(name=var)
     over30 = over30.where(over30 != 0, np.nan)
     #over30 = filterByMask(mask=mask, data=over30_prep, var='tasmean').sum(dim='time')
-    over40 = data['tasmean'].where(data['tasmean'] >= 40).sum(dim='time').to_dataset(name='tasmean')
+    over40 = data[var].where(data[var] >= 40).sum(dim='time').to_dataset(name=var)
     over40 = over40.where(over40 != 0, np.nan)
     #over40 = filterByMask(mask=mask, data=over40_prep, var='tasmean').sum(dim='time')
     mean_max_mean = data.resample(time = 'YE').max(dim='time').mean(dim='time')
@@ -202,8 +205,8 @@ def getGraphsTempGCM(pred_metrics, scenario, folder_path, pred_name, model_name)
         model_name (_type_): _description_
     """
     # Check if target folder to save figs exists, if not creates it
-    if not os.path.exists(f'{folder_path}{pred_name}'):
-        os.makedirs(f'{folder_path}{pred_name}')
+    if not os.path.exists(f'{folder_path}{pred_name}_pred_{model_name}'):
+        os.makedirs(f'{folder_path}{pred_name}_pred_{model_name}')
 
     __graphTrend(pred_metrics, scenario, folder_path, f'{pred_name}_pred_{model_name}')
 
@@ -274,7 +277,7 @@ def getFileName(data_path, target_name, keyword):
             break
     return file_name
 
-def loadGcm(gcm, scenario, to_slice, gcm_path):
+def loadGcm(gcm, scenario, to_slice, gcm_path, optVar=None):
     """_summary_
 
     Args:
@@ -294,11 +297,15 @@ def loadGcm(gcm, scenario, to_slice, gcm_path):
     years_1 = '19500101-20141231'
     years_2 = '20150101-21001231'
 
+    
+    # if optVar != None:
+    #     vars_mapping = optVar
+    # else:
     vars_mapping = {'ta': 't',
-                    'hus': 'q',
-                    'va': 'v',
-                    'ua': 'u',
-                    'psl': 'msl'}
+                'hus': 'q',
+                'va': 'v',
+                'ua': 'u',
+                'psl': 'msl'}
 
     heights_mapping = {500.0: '500',
                     700.0: '700',
@@ -311,7 +318,7 @@ def loadGcm(gcm, scenario, to_slice, gcm_path):
         data = xr.merge([data_1, data_2]).sel(time=slice(*to_slice))
         data = data.drop_dims('bnds')
 
-        if var not in ('psl'):
+        if var not in ('psl') and var != 'tas':
             data['plev'] = data['plev'] / 100
             for height in heights_mapping.keys():
                 dataAux = data.sel(plev=height)
@@ -910,9 +917,12 @@ def predDataset(X, model, device, flattener, var, ref = None):
 
     return yPred
 
-def getPredictand(data_path, name, var):
-    file_name = getFileName(data_path, name, keyword = var)
-    predictand_path = f'{data_path}{name}/{file_name}'
+def getPredictand(data_path, name, var, complete_path = None):
+    if complete_path == None:
+        file_name = getFileName(data_path, name, keyword = var)
+        predictand_path = f'{data_path}{name}/{file_name}'
+    else:
+        predictand_path = complete_path
     predictand = xr.open_dataset(predictand_path,
                                 chunks=-1) # Near surface air temperature (daily mean)
     predictand = checkCorrectData(predictand) # Transform coordinates and dimensions if necessary
@@ -1068,7 +1078,7 @@ def scalingDeltaCorrection(grid, refHist, refObs):
     return gridAux
 
 
-def multiMapPerSeason(data_to_plot, metrics, FIGS_PATH, 
+def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path = '', 
                 values = {'diff': {'over30': (-50, 50), 'over40': (-10, 10), 'std': (0, 10), 'else': (-3, 3)},
                           'noDiff': {'over30': (0, 500), 'over40': (0, 30), 'std': (0, 1.5), 'else': (-5, 35)}
                 }):
@@ -1080,19 +1090,19 @@ def multiMapPerSeason(data_to_plot, metrics, FIGS_PATH,
     for graph_type, seasons_value in data_to_plot.items():
         for metric in metrics: 
             #Cambiar a un diccionario TODO
-            if graph_type != 'diff':
+            if graph_type == 'noDiff':
                 if metric == 'over30':
                     v_min = values['noDiff'][metric][0]
                     v_max = values['noDiff'][metric][1]
                 elif metric == 'over40':
                     v_min = values['noDiff'][metric][0]
-                    v_max = values['noDiff'][metric][0]
+                    v_max = values['noDiff'][metric][1]
                 elif metric == 'std':
                     v_min = values['noDiff'][metric][0]
-                    v_max = values['noDiff'][metric][0]
+                    v_max = values['noDiff'][metric][1]
                 else:
                     v_min = values['noDiff']['else'][0]
-                    v_max = values['noDiff']['else'][0]
+                    v_max = values['noDiff']['else'][1]
             else:
                 if metric == 'over30' or metric == 'over40':     
                     v_min = values['diff'][metric][0]
@@ -1128,9 +1138,9 @@ def multiMapPerSeason(data_to_plot, metrics, FIGS_PATH,
                     if graph_type != 'diff':
                         dataToPlot = value[metric]['tasmean']
                     elif metric != 'std':
-                        dataToPlot = (data_to_plot['pred'][season_name][predictand_name][metric] - data_to_plot['real'][season_name][predictand_name][metric])['tasmean']
+                        dataToPlot = (data_to_plot[plot_metrics[0]][season_name][predictand_name][metric] - data_to_plot[plot_metrics[1]][season_name][predictand_name][metric])['tasmean']
                     else:
-                        dataToPlot = (data_to_plot['pred'][season_name][predictand_name][metric]/data_to_plot['real'][season_name][predictand_name][metric])['tasmean']
+                        dataToPlot = (data_to_plot[plot_metrics[0]][season_name][predictand_name][metric]/data_to_plot[plot_metrics[1]][season_name][predictand_name][metric])['tasmean']
 
                     im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
                                         dataToPlot,
@@ -1147,7 +1157,7 @@ def multiMapPerSeason(data_to_plot, metrics, FIGS_PATH,
 
             plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
             #plt.setp(axes[0, 0].get_ylabel, visible=True)
-            plt.savefig(f'{FIGS_PATH}predictions/comparisson_{metric}_{graph_type}.pdf')
+            plt.savefig(f'{FIGS_PATH}/comparisson_{metric}_{graph_type}{extra_path}.pdf')
             plt.close()
 
     total_time = time.time() - start_time

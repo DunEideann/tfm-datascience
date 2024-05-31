@@ -10,14 +10,15 @@ DATA_PATH_PREDICTANDS_SAVE = '/lustre/gmeteo/WORK/reyess/data/predictand/'
 FIGS_PATH = '/lustre/gmeteo/WORK/reyess/figs/'
 MODELS_PATH = '/oceano/gmeteo/users/reyess/tfm/official-code/models'
 DATA_PREDICTORS_TRANSFORMED = '/lustre/gmeteo/WORK/reyess/data/NorthAtlanticRegion_1.5degree/'
-PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/'
+PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/GCM/'
 VARIABLES_TO_DROP = ['lon_bnds', 'lat_bnds', 'crs']
 LAT_SLICE = slice(33.5, 48.6)
 LON_SLICE = slice(-10.5, 4.6)
-#MODEL_NAME = sys.argv[1]
-#GCM_NAME = sys.argv[2]
-MODEL_NAME = 'E-OBS'
-GCM_NAME = 'EC-Earth3-Veg'
+MODEL_NAME = sys.argv[1]
+GCM_NAME = sys.argv[2]
+#MODEL_NAME = 'ERA5-Land0.25deg'
+#GCM_NAME = 'EC-Earth3-Veg'
+output_dim = {'E-OBS': 730, 'AEMET_0.25deg': 730, 'Iberia01_v1.0': 728, 'pti-grid': 723, 'CHELSA': 730, 'ERA5-Land0.25deg': 721}
 
 # Listado de escenarios a predecir
 scenarios = ['ssp126', 'ssp245', 'ssp370', 'ssp585']
@@ -39,14 +40,26 @@ baseMask = utils.obtainMask(
     path=f'{DATA_PATH_PREDICTANDS_SAVE}AEMET_0.25deg/AEMET_0.25deg_tasmean_1951-2022.nc',
     var='tasmean',
     to_slice=(yearsTrain[0], yearsTest[1]))
+maskToUse = baseMask
 yFlat = baseMask.flatten(grid=predictand.load(), var='tasmean')
 # Extract the raw data from the xarray Dataset
 yFlat_array = utils.toArray(yFlat)
 yFlat['tasmean'].values = yFlat_array
 yUnflatten = baseMask.unFlatten(grid=yFlat, var='tasmean')
 
+if np.isnan(yFlat_array).sum() > 0:
+    secondMask = utils.obtainMask(grid = yUnflatten, var = 'tasmean')
+    yFlat = secondMask.flatten(grid=yUnflatten, var='tasmean')
+    yFlat_array = utils.toArray(yFlat)
+    yFlat['tasmean'].values = yFlat_array
+    yUnflatten = secondMask.unFlatten(grid=yFlat, var='tasmean')
+    maskToUse = secondMask
+
 era5_predictor = utils.getPredictors(DATA_PREDICTORS_TRANSFORMED)
 era5_predictor = era5_predictor.sel(time=slice(*(hist_reference[0], hist_reference[1])))
+
+# future = hist_baseline
+# scenario = 'ssp126'
 
 for future in [hist_baseline, future_1, future_2, future_3]:
     for scenario in scenarios:
@@ -56,7 +69,7 @@ for future in [hist_baseline, future_1, future_2, future_3]:
         hist_predictor = predictor.sel(time=slice(*(hist_reference[0], hist_reference[1])))
         future_predictor = predictor.sel(time=slice(*(future[0], future[1])))
 
-        start_time = time.time()
+        #start_time = time.time()
         hist_metric = utils.getMontlyMetrics(hist_predictor)
         future_metric = utils.getMontlyMetrics(future_predictor)
         era5_metric = utils.getMontlyMetrics(era5_predictor)
@@ -68,9 +81,9 @@ for future in [hist_baseline, future_1, future_2, future_3]:
             future_metric,
             era5_metric)
 
-        print(target_predictor)
-        total_time = time.time() - start_time
-        print(f"Primer escalado: {total_time:.2f} segundos.")
+        # print(target_predictor)
+        # total_time = time.time() - start_time
+        # print(f"Primer escalado: {total_time:.2f} segundos.")
 
         # start_time = time.time()
         # target_predictor2 = utils.scalingDeltaCorrection(future_predictor, hist_predictor, era5_predictor)
@@ -78,7 +91,7 @@ for future in [hist_baseline, future_1, future_2, future_3]:
         # total_time = time.time() - start_time
         # print(f"Segundo escalado: {total_time:.2f} segundos.")
 
-        
+
 
         # Standardize the predictor
         meanTrain = target_predictor.mean('time')
@@ -93,7 +106,7 @@ for future in [hist_baseline, future_1, future_2, future_3]:
         # Cargamos el modelo
         modelName = f'DeepESD_tas_{MODEL_NAME}' 
         model = models.DeepESD(spatial_x_dim=xStand_array.shape[2:],
-                            out_dim=yFlat_array.shape[1],
+                            out_dim=output_dim[MODEL_NAME],
                             channelsInputLayer=xStand_array.shape[1],
                             channelsLastLayer=10)
 
@@ -113,9 +126,12 @@ for future in [hist_baseline, future_1, future_2, future_3]:
                                     model=model,
                                     device='cpu',
                                     ref=yUnflatten,
-                                    flattener=baseMask,
+                                    flattener=maskToUse,
                                     var='tasmean')
 
         yPred.to_netcdf(f'{PREDS_PATH}predGCM_{modelName}_{GCM_NAME}_{scenario}_{future[0]}-{future[1]}.nc')
+
+        # To try and make sure it doesn't fail
+        time.sleep(2)
 
 
