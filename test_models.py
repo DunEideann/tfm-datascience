@@ -16,6 +16,8 @@ LAT_SLICE = slice(33.5, 48.6)
 LON_SLICE = slice(-10.5, 4.6)
 MODEL_NAME = sys.argv[1]
 GCM_NAME = sys.argv[2]
+PERIOD = int(sys.argv[3])
+SCENARIO = int(sys.argv[4])
 #MODEL_NAME = 'ERA5-Land0.25deg'
 #GCM_NAME = 'EC-Earth3-Veg'
 output_dim = {'E-OBS': 730, 'AEMET_0.25deg': 730, 'Iberia01_v1.0': 728, 'pti-grid': 723, 'CHELSA': 730, 'ERA5-Land0.25deg': 721}
@@ -28,26 +30,28 @@ hist_baseline = ('1995-01-01', '2014-12-31') #95-14
 future_1 = ('2021-01-01', '2040-12-31')
 future_2 = ('2041-01-01', '2060-12-31')
 future_3 = ('2081-01-01', '2100-12-31') 
+periods = [hist_baseline, future_1, future_2, future_3]
+yearsTrain = ('1980-01-01', '2003-12-31')
+yearsTest = ('2004-01-01', '2015-12-31')
 
 # Cargamos los datos del dataset
 predictand = utils.getPredictand(DATA_PATH_PREDICTANDS_SAVE, MODEL_NAME, 'tasmean')
-# Split into train and test set
-yearsTrain = ('1980-01-01', '2003-12-31')
-yearsTest = ('2004-01-01', '2014-12-31')
+predictand = predictand.sel(time=slice(*(yearsTrain[0], yearsTrain[1]))).load()
 
 # Creamos la mascara a usar
 baseMask = utils.obtainMask(
     path=f'{DATA_PATH_PREDICTANDS_SAVE}AEMET_0.25deg/AEMET_0.25deg_tasmean_1951-2022.nc',
     var='tasmean',
-    to_slice=(yearsTrain[0], yearsTest[1]))
+    to_slice=(yearsTrain[0], yearsTrain[1]))
 maskToUse = baseMask
-yFlat = baseMask.flatten(grid=predictand.load(), var='tasmean')
+yFlat = baseMask.flatten(grid=predictand, var='tasmean')
 # Extract the raw data from the xarray Dataset
 yFlat_array = utils.toArray(yFlat)
 yFlat['tasmean'].values = yFlat_array
 yUnflatten = baseMask.unFlatten(grid=yFlat, var='tasmean')
 
 if np.isnan(yFlat_array).sum() > 0:
+    print("Segunda mascara en proceso")
     secondMask = utils.obtainMask(grid = yUnflatten, var = 'tasmean')
     yFlat = secondMask.flatten(grid=yUnflatten, var='tasmean')
     yFlat_array = utils.toArray(yFlat)
@@ -60,9 +64,13 @@ era5_predictor = era5_predictor.sel(time=slice(*(hist_reference[0], hist_referen
 
 # future = hist_baseline
 # scenario = 'ssp126'
-
-for future in [hist_baseline, future_1, future_2, future_3]:
-    for scenario in scenarios:
+SCENARIO = scenarios[SCENARIO]
+PERIOD = periods[PERIOD]
+print("1")
+for future in [PERIOD]:
+    print(f"{future}")
+    for scenario in [SCENARIO]:
+        print(f"{scenario}")
         #scenario = 'ssp126'
         #Cargamos DATASET PREDICTORES Y PREPARAMOS DATOS
         predictor = utils.loadGcm(GCM_NAME, scenario, (hist_reference[0], future_3[1]), DATA_PATH_PREDICTORS)
@@ -81,17 +89,6 @@ for future in [hist_baseline, future_1, future_2, future_3]:
             future_metric,
             era5_metric)
 
-        # print(target_predictor)
-        # total_time = time.time() - start_time
-        # print(f"Primer escalado: {total_time:.2f} segundos.")
-
-        # start_time = time.time()
-        # target_predictor2 = utils.scalingDeltaCorrection(future_predictor, hist_predictor, era5_predictor)
-        # print(target_predictor2)
-        # total_time = time.time() - start_time
-        # print(f"Segundo escalado: {total_time:.2f} segundos.")
-
-
 
         # Standardize the predictor
         meanTrain = target_predictor.mean('time')
@@ -106,7 +103,7 @@ for future in [hist_baseline, future_1, future_2, future_3]:
         # Cargamos el modelo
         modelName = f'DeepESD_tas_{MODEL_NAME}' 
         model = models.DeepESD(spatial_x_dim=xStand_array.shape[2:],
-                            out_dim=output_dim[MODEL_NAME],
+                            out_dim=yFlat_array.shape[1],#output_dim[MODEL_NAME],
                             channelsInputLayer=xStand_array.shape[1],
                             channelsLastLayer=10)
 

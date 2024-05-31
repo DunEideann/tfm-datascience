@@ -991,7 +991,7 @@ def maskData(var, objective, secondGrid=None, grid = None, path = None, to_slice
     objectiveFlat[var].values = objectiveFlat_array
     objectiveUnflatten = baseMask.unFlatten(grid=objectiveFlat, var=var)
     
-    if np.isnan(objectiveUnflatten).sum() > 0:
+    if np.isnan(objectiveUnflatten).sum() > 0 and secondGrid != None:
         secondMask = obtainMask(grid = secondGrid, var = var)
         secondFlat = secondMask.flatten(grid=objectiveUnflatten, var=var)
         secondFlat_array = toArray(secondFlat)
@@ -1090,7 +1090,7 @@ def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path
     for graph_type, seasons_value in data_to_plot.items():
         for metric in metrics: 
             #Cambiar a un diccionario TODO
-            if graph_type == 'noDiff':
+            if graph_type != 'diff':
                 if metric == 'over30':
                     v_min = values['noDiff'][metric][0]
                     v_max = values['noDiff'][metric][1]
