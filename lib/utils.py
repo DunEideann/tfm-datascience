@@ -1078,14 +1078,15 @@ def scalingDeltaCorrection(grid, refHist, refObs):
     return gridAux
 
 
-def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path = '', 
+def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path = '', color_number = None, color_map = None,
                 values = {'diff': {'over30': (-50, 50), 'over40': (-10, 10), 'std': (0, 10), 'else': (-3, 3)},
                           'noDiff': {'over30': (0, 500), 'over40': (0, 30), 'std': (0, 1.5), 'else': (-5, 35)}
                 }):
     cmap = plt.cm.bwr  # define the colormap
-    cmaplist = [cmap(i) for i in range(cmap.N)]
+    color_number = cmap.N if color_number == None else color_number
+    cmaplist = [cmap(i) for i in range(color_number)]
     cmap = LinearSegmentedColormap.from_list(
-        'Custom cmap', cmaplist, cmap.N)
+        'Custom cmap', cmaplist, color_number)
     start_time = time.time()
     for graph_type, seasons_value in data_to_plot.items():
         for metric in metrics: 
@@ -1163,3 +1164,52 @@ def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path
     total_time = time.time() - start_time
     print(f"El código de graficos de test se ejecutó en {total_time:.2f} segundos.")
 
+def graphsBaseGCM(objective, reference, save_path):
+    diff = {}
+    for key in objective.keys():
+        if key == 'std':
+            diff[key] = objective[key] / reference[key]
+        else:
+            diff[key] = objective[key] - reference[key]
+
+    # Configurar el tamaño de la figura y crear subgráficos con GeoAxes
+    fig, axes = plt.subplots(nrows=6, ncols=3, figsize=(15, 30), subplot_kw={'projection': ccrs.PlateCarree()})
+
+    cmap = (ListedColormap(['royalblue', 'cyan', 'yellow', 'orange'])
+            .with_extremes(over='red', under='blue'))
+
+    # Generar y mostrar datos en cada subgráfico
+    for i, key in enumerate(objective.keys()):
+        for j in range(3):
+            if j == 0:
+                data = objective[key]['tas']
+            elif j == 1:
+                data = reference[key]['tas']
+            else:
+                data = diff[key]['tas']
+
+            if j == 0 and i == 0:
+                print(data)
+            # Obtener el subgráfico actual
+            v_min = data.min()
+            v_max = data.max()
+            bounds = np.linspace(v_min, v_max, 5)
+            ax = axes[i, j]
+
+            # Mostrar la imagen en el subgráfico actual
+            im = ax.pcolormesh(data.coords['lon'].values, data.coords['lat'].values, data,
+                               transform=ccrs.PlateCarree(), cmap=cmap,
+                               norm=BoundaryNorm(bounds, cmap.N), shading='auto')
+
+            # Agregar una barra de color individual
+            cbar = plt.colorbar(im, ax=ax, orientation='horizontal', pad=0.05)
+            im.set_clim(vmin=v_min, vmax=v_max)
+
+            # Opcional: establecer título, etiquetas, etc.
+            ax.set_title(f'Subgráfico {i+1},{j+1}')
+            ax.coastlines()  # Añadir líneas de costa para contexto geográfico
+
+    # Ajustar el layout para que no haya solapamientos
+    plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.2, hspace=0.4)
+    plt.savefig(save_path)
+    plt.close()
