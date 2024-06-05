@@ -45,10 +45,10 @@ def getMetricsTemp(data, var = None):#, mask=None):
     val_mean_annual = data.resample(time = 'YE').mean()
     val_st = data.std(dim = 'time')
     val_99 = data.quantile(0.99, dim = 'time')
-    over30 = data[var].where(data[var] >= 30).sum(dim='time').to_dataset(name=var)
+    over30 = data[var].where(data[var] >= 30).count(dim='time').to_dataset(name=var)
     over30 = over30.where(over30 != 0, np.nan)
     #over30 = filterByMask(mask=mask, data=over30_prep, var='tasmean').sum(dim='time')
-    over40 = data[var].where(data[var] >= 40).sum(dim='time').to_dataset(name=var)
+    over40 = data[var].where(data[var] >= 40).count(dim='time').to_dataset(name=var)
     over40 = over40.where(over40 != 0, np.nan)
     #over40 = filterByMask(mask=mask, data=over40_prep, var='tasmean').sum(dim='time')
     mean_max_mean = data.resample(time = 'YE').max(dim='time').mean(dim='time')
@@ -1078,15 +1078,21 @@ def scalingDeltaCorrection(grid, refHist, refObs):
     return gridAux
 
 
-def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path = '', color_number = None, color_map = None,
+def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path = '', color_extended = False,
                 values = {'diff': {'over30': (-50, 50), 'over40': (-10, 10), 'std': (0, 10), 'else': (-3, 3)},
                           'noDiff': {'over30': (0, 500), 'over40': (0, 30), 'std': (0, 1.5), 'else': (-5, 35)}
                 }):
-    cmap = plt.cm.bwr  # define the colormap
-    color_number = cmap.N if color_number == None else color_number
-    cmaplist = [cmap(i) for i in range(color_number)]
-    cmap = LinearSegmentedColormap.from_list(
-        'Custom cmap', cmaplist, color_number)
+    #cmap = plt.cm.bwr  # define the colormap
+    if color_extended:
+        list_colors = ['royalblue', 'cyan', 'mediumspringgreen', 'green', 'yellow', 'orange']
+    else:
+        list_colors = ['royalblue', 'cyan', 'yellow', 'orange']
+    cmap = (ListedColormap(list_colors)
+            .with_extremes(over='red', under='blue'))
+    # color_number = cmap.N if color_number == None else color_number
+    # cmaplist = [cmap(i) for i in range(color_number)]
+    # cmap = LinearSegmentedColormap.from_list(
+    #     'Custom cmap', cmaplist, color_number)
     start_time = time.time()
     for graph_type, seasons_value in data_to_plot.items():
         for metric in metrics: 
@@ -1114,8 +1120,8 @@ def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path
                 else:
                     v_min = values['diff']['else'][0]
                     v_max = values['diff']['else'][1]
-            bounds = np.linspace(v_min, v_max, 21)
-            norm = BoundaryNorm(bounds, cmap.N)
+            bounds = np.linspace(v_min, v_max, cmap.N +1)
+            bounds = np.round(bounds, 2)
             #intervalos = np.arange(v_min, v_max+0.1, 10)
             nRows, nCols = 6, 4
             #fig = plt.figure(figsize=(20, 18))#, sharex = True, sharey = True)
@@ -1153,7 +1159,8 @@ def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path
                 i += 1
 
             cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])
-            cbar = fig.colorbar(im, cax)#, cmap=cmap_discreto, norm=norm, boundaries=intervalos)#, pad = 0.02, shrink=0.8)
+            cbar = plt.colorbar(im, cax, pad=0.05, extend='both', extendfrac='auto', spacing='uniform')
+            #cbar = fig.colorbar(im, cax)#, cmap=cmap_discreto, norm=norm, boundaries=intervalos)#, pad = 0.02, shrink=0.8)
             #|fig.supylabel("HAIWHROIWR")
 
             plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
@@ -1164,8 +1171,10 @@ def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path
     total_time = time.time() - start_time
     print(f"El código de graficos de test se ejecutó en {total_time:.2f} segundos.")
 
-def graphsBaseGCM(objective, reference, save_path):
+def graphsBaseGCM(objective, reference, save_path, color_extended=False):
     diff = {}
+    del objective['trend']
+    #del reference['trend']
     for key in objective.keys():
         if key == 'std':
             diff[key] = objective[key] / reference[key]
@@ -1175,11 +1184,18 @@ def graphsBaseGCM(objective, reference, save_path):
     # Configurar el tamaño de la figura y crear subgráficos con GeoAxes
     fig, axes = plt.subplots(nrows=6, ncols=3, figsize=(15, 30), subplot_kw={'projection': ccrs.PlateCarree()})
 
-    cmap = (ListedColormap(['royalblue', 'cyan', 'yellow', 'orange'])
+    if color_extended:
+        list_colors = ['royalblue', 'cyan', 'mediumspringgreen', 'green', 'yellow', 'orange']
+    else:
+        list_colors = ['royalblue', 'cyan', 'yellow', 'orange']
+    cmap = (ListedColormap(list_colors)
             .with_extremes(over='red', under='blue'))
 
+    #print(f"SHAPE DE DATASETS: {objective.shape}")
     # Generar y mostrar datos en cada subgráfico
     for i, key in enumerate(objective.keys()):
+        if key == 'trend':
+            continue
         for j in range(3):
             if j == 0:
                 data = objective[key]['tas']
@@ -1187,26 +1203,43 @@ def graphsBaseGCM(objective, reference, save_path):
                 data = reference[key]['tas']
             else:
                 data = diff[key]['tas']
-
+            
+            print(f"DATA SHAPE: {data.shape}, metric: {key}")
+            lon = data.coords['lon'].values
+            lat = data.coords['lat'].values
+            data = data.values.reshape(data.shape[0], data.shape[1])
             if j == 0 and i == 0:
                 print(data)
             # Obtener el subgráfico actual
-            v_min = data.min()
-            v_max = data.max()
-            bounds = np.linspace(v_min, v_max, 5)
+            masked_data = np.ma.masked_invalid(data)
+            v_min = np.nanmin(data) if not np.isnan(np.nanmin(data)) else 0
+            v_max = np.nanmax(data) if not np.isnan(np.nanmax(data)) else 5
+            if (v_max-v_min) == 0:
+                v_max = v_min +1
+            print(f"Min: {v_min}, MAX: {v_max}")
+            bounds = np.linspace(v_min, v_max, cmap + 1)
+            bounds = np.round(bounds, 2)
             ax = axes[i, j]
 
             # Mostrar la imagen en el subgráfico actual
-            im = ax.pcolormesh(data.coords['lon'].values, data.coords['lat'].values, data,
+            im = ax.pcolormesh(lon, lat, data,
                                transform=ccrs.PlateCarree(), cmap=cmap,
                                norm=BoundaryNorm(bounds, cmap.N), shading='auto')
 
             # Agregar una barra de color individual
-            cbar = plt.colorbar(im, ax=ax, orientation='horizontal', pad=0.05)
+            cbar = plt.colorbar(im, ax=ax, orientation='horizontal', pad=0.05, extend='both', extendfrac='auto', spacing='uniform')
+            # cbar = fig.colorbar(
+            #     ScalarMappable(cmap=cmap, norm=BoundaryNorm(bounds, cmap.N)),
+            #     cax=ax, orientation='horizontal',
+            #     extend='both', extendfrac='auto',
+            #     spacing='uniform',
+            #     label='Custom extension lengths, some other units',
+            # )
             im.set_clim(vmin=v_min, vmax=v_max)
 
             # Opcional: establecer título, etiquetas, etc.
-            ax.set_title(f'Subgráfico {i+1},{j+1}')
+            dataset = ['Futuro', 'Historico', 'Diferencia']
+            ax.set_title(f'{key}-{dataset[j]}')
             ax.coastlines()  # Añadir líneas de costa para contexto geográfico
 
     # Ajustar el layout para que no haya solapamientos

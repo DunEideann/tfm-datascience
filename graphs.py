@@ -154,8 +154,8 @@ for season_name, months in seasons.items():
 
 
 # Guardado de mapas de varias season comparadas
-utils.multiMapPerSeason(data_to_plot, metrics, plot_metrics, f'{FIGS_PATH}predictions')
-utils.multiMapPerSeason(train_to_plot, metrics, plot_metrics, f'{FIGS_PATH}predictions')
+utils.multiMapPerSeason(data_to_plot, metrics, plot_metrics, f'{FIGS_PATH}predictions', color_extended=True)
+utils.multiMapPerSeason(train_to_plot, metrics, plot_metrics, f'{FIGS_PATH}predictions', color_extended=True)
 # start_time = time.time()
 # for graph_type, seasons_value in train_to_plot.items():
 #     for metric in metrics: 

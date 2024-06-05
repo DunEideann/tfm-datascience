@@ -76,4 +76,4 @@ for future in [hist_baseline, future_1, future_2, future_3]:
 
     years = f"{future[0].split('-')[0]}-{future[1].split('-')[0]}"
     for scenario in scenarios:
-        utils.multiMapPerSeason(data_to_plot[scenario], metrics, plot_metrics, f'{FIGS_PATH}predictions', extra_path=f"{years}-{scenario}", values = values)
+        utils.multiMapPerSeason(data_to_plot[scenario], metrics, plot_metrics, f'{FIGS_PATH}predictions', extra_path=f"{years}-{scenario}", values = values, color_extended=True)

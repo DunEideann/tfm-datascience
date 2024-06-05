@@ -66,69 +66,63 @@ era5_predictor = era5_predictor.sel(time=slice(*(hist_reference[0], hist_referen
 # scenario = 'ssp126'
 SCENARIO = scenarios[SCENARIO]
 PERIOD = periods[PERIOD]
-print("1")
-for future in [PERIOD]:
-    print(f"{future}")
-    for scenario in [SCENARIO]:
-        print(f"{scenario}")
-        #scenario = 'ssp126'
-        #Cargamos DATASET PREDICTORES Y PREPARAMOS DATOS
-        predictor = utils.loadGcm(GCM_NAME, scenario, (hist_reference[0], future_3[1]), DATA_PATH_PREDICTORS)
-        hist_predictor = predictor.sel(time=slice(*(hist_reference[0], hist_reference[1])))
-        future_predictor = predictor.sel(time=slice(*(future[0], future[1])))
 
-        #start_time = time.time()
-        hist_metric = utils.getMontlyMetrics(hist_predictor)
-        future_metric = utils.getMontlyMetrics(future_predictor)
-        era5_metric = utils.getMontlyMetrics(era5_predictor)
+#Cargamos DATASET PREDICTORES Y PREPARAMOS DATOS
+predictor = utils.loadGcm(GCM_NAME, SCENARIO, (hist_reference[0], future_3[1]), DATA_PATH_PREDICTORS)
+hist_predictor = predictor.sel(time=slice(*(hist_reference[0], hist_reference[1])))
+future_predictor = predictor.sel(time=slice(*(PERIOD[0], PERIOD[1])))
 
-        target_predictor = predictor.sel(time=slice(*(future[0], future[1])))
-        target_predictor = utils.standarBiasCorrection(
-            target_predictor,
-            hist_metric,
-            future_metric,
-            era5_metric)
+#start_time = time.time()
+hist_metric = utils.getMontlyMetrics(hist_predictor)
+future_metric = utils.getMontlyMetrics(future_predictor)
+era5_metric = utils.getMontlyMetrics(era5_predictor)
+
+target_predictor = predictor.sel(time=slice(*(PERIOD[0], PERIOD[1])))
+target_predictor = utils.standarBiasCorrection(
+    target_predictor,
+    hist_metric,
+    future_metric,
+    era5_metric)
 
 
-        # Standardize the predictor
-        meanTrain = target_predictor.mean('time')
-        stdTrain = target_predictor.std('time')
-        xStand = (target_predictor - meanTrain) / stdTrain
-        # Extract the raw data from the xarray Dataset
-        xStand_array = utils.toArray(xStand)
-        print("Forma de xStand y yFlat arrays")
-        print(xStand_array.shape)
-        print(yFlat_array.shape)
+# Standardize the predictor
+# meanTrain = target_predictor.mean('time')
+# stdTrain = target_predictor.std('time')
+# xStand = (target_predictor - meanTrain) / stdTrain
+# Extract the raw data from the xarray Dataset
 
-        # Cargamos el modelo
-        modelName = f'DeepESD_tas_{MODEL_NAME}' 
-        model = models.DeepESD(spatial_x_dim=xStand_array.shape[2:],
-                            out_dim=yFlat_array.shape[1],#output_dim[MODEL_NAME],
-                            channelsInputLayer=xStand_array.shape[1],
-                            channelsLastLayer=10)
+xStand_array = utils.toArray(target_predictor)#xStand)
+print("Forma de xStand y yFlat arrays")
+print(xStand_array.shape)
+print(yFlat_array.shape)
 
-        # Load the model state dictionary from a file
-        checkpoint = torch.load(f'{MODELS_PATH}/DeepESD_tas_{MODEL_NAME}.pt')
-        model.load_state_dict(checkpoint)
+# Cargamos el modelo
+modelName = f'DeepESD_tas_{MODEL_NAME}' 
+model = models.DeepESD(spatial_x_dim=xStand_array.shape[2:],
+                    out_dim=yFlat_array.shape[1],#output_dim[MODEL_NAME],
+                    channelsInputLayer=xStand_array.shape[1],
+                    channelsLastLayer=10)
 
-        # Realizamos la prediccion
-        # Compute predictions on the test set
-        # Transformacion de coordenada time de yUnflatten
-        yUnflatten = yUnflatten.reindex(time=target_predictor.time, fill_value=np.nan)
-        #yUnflatten = yUnflatten.resample(time=target_predictor.time)
+# Load the model state dictionary from a file
+checkpoint = torch.load(f'{MODELS_PATH}/DeepESD_tas_{MODEL_NAME}.pt')
+model.load_state_dict(checkpoint)
 
-        print("yUnflatten")
-        print(yUnflatten) # Transformar tiempos a los mismos de GCM
-        yPred = utils.predDataset(X=xStand_array,
-                                    model=model,
-                                    device='cpu',
-                                    ref=yUnflatten,
-                                    flattener=maskToUse,
-                                    var='tasmean')
+# Realizamos la prediccion
+# Compute predictions on the test set
+# Transformacion de coordenada time de yUnflatten
+yUnflatten = yUnflatten.reindex(time=target_predictor.time, fill_value=np.nan)
+#yUnflatten = yUnflatten.resample(time=target_predictor.time)
 
-        yPred.to_netcdf(f'{PREDS_PATH}predGCM_{modelName}_{GCM_NAME}_{scenario}_{future[0]}-{future[1]}.nc')
+print("yUnflatten")
+print(yUnflatten) # Transformar tiempos a los mismos de GCM
+yPred = utils.predDataset(X=xStand_array,
+                            model=model,
+                            device='cpu',
+                            ref=yUnflatten,
+                            flattener=maskToUse,
+                            var='tasmean')
 
-        # To try and make sure it doesn't fail
-        time.sleep(2)
+yPred.to_netcdf(f'{PREDS_PATH}predGCM_{modelName}_{GCM_NAME}_{SCENARIO}_{PERIOD[0]}-{PERIOD[1]}.nc')
+
 
 
