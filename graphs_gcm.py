@@ -23,7 +23,8 @@ future_2 = ('2041-01-01', '2060-12-31')
 future_3 = ('2081-01-01', '2100-12-31') 
 
 future = future_1
-predictands = ['E-OBS', 'AEMET_0.25deg', 'Iberia01_v1.0', 'pti-grid', 'CHELSA', 'ERA5-Land0.25deg']
+predictands = ['ERA5-Land0.25deg', 'E-OBS']#,'AEMET_0.25deg', 'Iberia01_v1.0''pti-grid', 'CHELSA'
+# ERA y EOBS Listos, los otros 4 en pendiente
 
 for future in [hist_baseline, future_1, future_2, future_3]:
     # Cargamos Predicciones a escenarios
@@ -34,6 +35,7 @@ for future in [hist_baseline, future_1, future_2, future_3]:
         yPredMetrics[scenario] = {}
         for predictand_name in predictands:
             modelName = f'DeepESD_tas_{predictand_name}' 
+            print(modelName)
             yPredLoaded[scenario][predictand_name] = xr.open_dataset(f'{PREDS_PATH}predGCM_{modelName}_{GCM_NAME}_{scenario}_{future[0]}-{future[1]}.nc')
             yPredMetrics[scenario][predictand_name] = utils.getMetricsTemp(yPredLoaded[scenario][predictand_name]) # CARGAMOS METRICAS
             utils.getGraphsTempGCM(yPredMetrics[scenario][predictand_name], scenario, FIGS_PATH, GCM_NAME, predictand_name)# REALIZAMOS GRAFICOS COMPARATIVOS
@@ -41,9 +43,13 @@ for future in [hist_baseline, future_1, future_2, future_3]:
     yHisto = {}
     yHistoMetrics = {}
     for scenario in scenarios:
-        yHisto[scenario] = xr.open_dataset(f'{PREDS_PATH}predGCM_{modelName}_{GCM_NAME}_{scenario}_{hist_baseline[0]}-{hist_baseline[1]}.nc')
-        yHistoMetrics[scenario] = utils.getMetricsTemp(yHisto[scenario]) # CARGAMOS METRICAS
-        utils.getGraphsTempGCM(yHistoMetrics[scenario], scenario, FIGS_PATH, GCM_NAME, predictand_name)# REALIZAMOS GRAFICOS COMPARATIVOS
+        yHisto[scenario] = {}
+        yHistoMetrics[scenario] = {}
+        for predictand_name in predictands:
+            modelName = f'DeepESD_tas_{predictand_name}' 
+            yHisto[scenario][predictand_name] = xr.open_dataset(f'{PREDS_PATH}predGCM_{modelName}_{GCM_NAME}_{scenario}_{hist_baseline[0]}-{hist_baseline[1]}.nc')
+            yHistoMetrics[scenario][predictand_name] = utils.getMetricsTemp(yHisto[scenario][predictand_name]) # CARGAMOS METRICAS
+            utils.getGraphsTempGCM(yHistoMetrics[scenario][predictand_name], scenario, FIGS_PATH, GCM_NAME, predictand_name)# REALIZAMOS GRAFICOS COMPARATIVOS
 
     print("Terminado con exito!")
 
@@ -58,7 +64,7 @@ for future in [hist_baseline, future_1, future_2, future_3]:
         for season_name, months in seasons.items():
             for predictand_name in predictands:
                 y_pred_season = yPredLoaded[scenario][predictand_name].isel(time = (yPredLoaded[scenario][predictand_name].time.dt.season == months))
-                y_hist_season = yHisto[scenario].isel(time = (yHisto[scenario].time.dt.season == months))
+                y_hist_season = yHisto[scenario][predictand_name].isel(time = (yHisto[scenario][predictand_name].time.dt.season == months))
                 y_pred_metrics = utils.getMetricsTemp(y_pred_season)#, mask=maskToUse)
                 y_hist_metrics = utils.getMetricsTemp(y_hist_season)#, mask=maskToUse)
 
