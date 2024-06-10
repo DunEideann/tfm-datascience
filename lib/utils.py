@@ -313,8 +313,8 @@ def loadGcm(gcm, scenario, to_slice, gcm_path, optVar=None):
 
     varsData = []
     for var in vars_mapping.keys():
-        data_1 = xr.open_dataset(f'{gcm_path}/{var}_{gcm}_historical_{gcm_run}_{years_1}.nc')
-        data_2 = xr.open_dataset(f'{gcm_path}/{var}_{gcm}_{scenario}_{gcm_run}_{years_2}.nc')
+        data_1 = xr.open_dataset(f'{gcm_path}/{var}_{gcm}_historical_{gcm_run}_{years_1}.nc', mode='r')
+        data_2 = xr.open_dataset(f'{gcm_path}/{var}_{gcm}_{scenario}_{gcm_run}_{years_2}.nc', mode='r')
         data = xr.merge([data_1, data_2]).sel(time=slice(*to_slice))
         data = data.drop_dims('bnds')
 
@@ -387,7 +387,7 @@ def loadSurfaceGcm(gcm, var, scenario, gcm_path):
     else:
         years = '20150101-21001231'
 
-    data = xr.open_dataset(f'{gcm_path}/{var}_{gcm}_{scenario}_{gcm_run}_{years}.nc')
+    data = xr.open_dataset(f'{gcm_path}/{var}_{gcm}_{scenario}_{gcm_run}_{years}.nc', mode='r')
     data = data.drop_dims('bnds')
 
     data = data.reindex(lat=list(reversed(data.lat)))
@@ -840,7 +840,7 @@ def obtainMask(var, grid = None, path = None, to_slice=None):
         utils.flattenSpatialGrid: An object of the class 'flattenSpatialGrid'
     """
     if path != None:
-        grid = xr.open_dataset(path)
+        grid = xr.open_dataset(path, mode='r')
     grid = checkCorrectData(grid) # Transform coordinates and dimensions if necessary
     grid = checkIndex(grid)
     grid=grid.assign_coords({'time': grid.indexes['time'].normalize()})
@@ -924,7 +924,7 @@ def getPredictand(data_path, name, var, complete_path = None):
     else:
         predictand_path = complete_path
     predictand = xr.open_dataset(predictand_path,
-                                chunks=-1) # Near surface air temperature (daily mean)
+                                chunks=-1, mode='r') # Near surface air temperature (daily mean)
     predictand = checkCorrectData(predictand) # Transform coordinates and dimensions if necessary
 
     predictand = checkIndex(predictand)
@@ -941,7 +941,7 @@ def getPredictors(data_path):
     'msl']
     data_predictors = []
     for var in predictors_vars:
-        data_predictors.append(xr.open_dataset(f'{data_path}/{var}_ERA5.nc'))
+        data_predictors.append(xr.open_dataset(f'{data_path}/{var}_ERA5.nc', mode = 'r'))
     predictors = xr.merge(data_predictors)
     predictors = predictors.reindex(lat=list(reversed(predictors.lat))) 
 
@@ -977,7 +977,7 @@ def maskData(var, objective, secondGrid=None, grid = None, path = None, to_slice
         _type_: _description_
     """
     if path != None:
-        grid = xr.open_dataset(path)
+        grid = xr.open_dataset(path, mode='r')
     grid = checkCorrectData(grid) # Transform coordinates and dimensions if necessary
     grid = checkIndex(grid)
     grid=grid.assign_coords({'time': grid.indexes['time'].normalize()})
@@ -1084,7 +1084,7 @@ def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path
                 }):
     #cmap = plt.cm.bwr  # define the colormap
     if color_extended:
-        list_colors = ['royalblue', 'cyan', 'mediumspringgreen', 'green', 'yellow', 'orange']
+        list_colors = ['royalblue', 'cyan', 'magenta', 'yellow', 'orange', 'lightcoral']
     else:
         list_colors = ['royalblue', 'cyan', 'yellow', 'orange']
     cmap = (ListedColormap(list_colors)

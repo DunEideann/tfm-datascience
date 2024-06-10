@@ -85,3 +85,5 @@ for scenario in scenarios:
             hist_metrics = utils.getMetricsTemp(hist_season, 'tas')
         
             utils.graphsBaseGCM(future_metrics, hist_metrics, f'{FIGS_PATH}metricsGCM_{scenario}_{season_name}_{future[0]}-{future[1]}.pdf')
+
+print("TERMINADO CON EXITO!")

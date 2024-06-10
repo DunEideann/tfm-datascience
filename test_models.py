@@ -59,8 +59,9 @@ if np.isnan(yFlat_array).sum() > 0:
     yUnflatten = secondMask.unFlatten(grid=yFlat, var='tasmean')
     maskToUse = secondMask
 
-era5_predictor = utils.getPredictors(DATA_PREDICTORS_TRANSFORMED)
-era5_predictor = era5_predictor.sel(time=slice(*(hist_reference[0], hist_reference[1])))
+era5_data = utils.getPredictors(DATA_PREDICTORS_TRANSFORMED)
+era5_predictor = era5_data.sel(time=slice(*(hist_reference[0], hist_reference[1]))).load()
+era5_train = era5_data.sel(time=slice(*yearsTrain)).load()
 
 # future = hist_baseline
 # scenario = 'ssp126'
@@ -69,15 +70,15 @@ PERIOD = periods[PERIOD]
 
 #Cargamos DATASET PREDICTORES Y PREPARAMOS DATOS
 predictor = utils.loadGcm(GCM_NAME, SCENARIO, (hist_reference[0], future_3[1]), DATA_PATH_PREDICTORS)
-hist_predictor = predictor.sel(time=slice(*(hist_reference[0], hist_reference[1])))
-future_predictor = predictor.sel(time=slice(*(PERIOD[0], PERIOD[1])))
+hist_predictor = predictor.sel(time=slice(*(hist_reference[0], hist_reference[1]))).load()
+future_predictor = predictor.sel(time=slice(*(PERIOD[0], PERIOD[1]))).load()
 
 #start_time = time.time()
 hist_metric = utils.getMontlyMetrics(hist_predictor)
 future_metric = utils.getMontlyMetrics(future_predictor)
 era5_metric = utils.getMontlyMetrics(era5_predictor)
 
-target_predictor = predictor.sel(time=slice(*(PERIOD[0], PERIOD[1])))
+target_predictor = predictor.sel(time=slice(*(PERIOD[0], PERIOD[1]))).load()
 target_predictor = utils.standarBiasCorrection(
     target_predictor,
     hist_metric,
@@ -86,12 +87,13 @@ target_predictor = utils.standarBiasCorrection(
 
 
 # Standardize the predictor
-# meanTrain = target_predictor.mean('time')
-# stdTrain = target_predictor.std('time')
-# xStand = (target_predictor - meanTrain) / stdTrain
+# Tiene que ser Era5 de 80 a 2015
+meanTrain = era5_train.mean('time')
+stdTrain = era5_train.std('time')
+xStand = (target_predictor - meanTrain) / stdTrain
 # Extract the raw data from the xarray Dataset
 
-xStand_array = utils.toArray(target_predictor)#xStand)
+xStand_array = utils.toArray(xStand)#xStand)
 print("Forma de xStand y yFlat arrays")
 print(xStand_array.shape)
 print(yFlat_array.shape)
@@ -124,5 +126,4 @@ yPred = utils.predDataset(X=xStand_array,
 
 yPred.to_netcdf(f'{PREDS_PATH}predGCM_{modelName}_{GCM_NAME}_{SCENARIO}_{PERIOD[0]}-{PERIOD[1]}.nc')
 
-
-
+print("TERMINADO CON EXITO!")

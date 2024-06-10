@@ -23,10 +23,10 @@ future_2 = ('2041-01-01', '2060-12-31')
 future_3 = ('2081-01-01', '2100-12-31') 
 
 future = future_1
-predictands = ['ERA5-Land0.25deg', 'E-OBS']#,'AEMET_0.25deg', 'Iberia01_v1.0''pti-grid', 'CHELSA'
+predictands = ['ERA5-Land0.25deg', 'E-OBS','AEMET_0.25deg', 'Iberia01_v1.0', 'pti-grid', 'CHELSA']
 # ERA y EOBS Listos, los otros 4 en pendiente
-
-for future in [hist_baseline, future_1, future_2, future_3]:
+#hist_baseline, future_1, future_2,
+for future in [future_3]:
     # Cargamos Predicciones a escenarios
     yPredLoaded = {}
     yPredMetrics = {}
@@ -77,9 +77,17 @@ for future in [hist_baseline, future_1, future_2, future_3]:
 
 
     values = {'diff': {'over30': (-50, 50), 'over40': (-10, 10), 'std': (0, 10), 'else': (-5, 5)},
-            'noDiff': {'over30': (0, 500), 'over40': (0, 30), 'std': (0, 2.5), 'else': (-5, 45)}}
+            'noDiff': {'over30': (0, 500), 'over40': (0, 30), 'std': (0, 2.5), 'else': (-5, 45)}}   
 
 
     years = f"{future[0].split('-')[0]}-{future[1].split('-')[0]}"
     for scenario in scenarios:
+        if scenario == scenarios[0]:
+            values['diff']['else'] = (-4, 4)
+        elif scenario == scenarios[2]:
+            values['diff']['else'] = (-7, 7)
+        elif scenario == scenarios[3]:
+            values['diff']['else'] = (-9, 9)
         utils.multiMapPerSeason(data_to_plot[scenario], metrics, plot_metrics, f'{FIGS_PATH}predictions', extra_path=f"{years}-{scenario}", values = values, color_extended=True)
+
+print("TERMINADO CON EXITO!")
