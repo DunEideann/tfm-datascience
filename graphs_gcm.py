@@ -21,13 +21,15 @@ hist_baseline = ('1995-01-01', '2014-12-31') #95-14
 future_1 = ('2021-01-01', '2040-12-31')
 future_2 = ('2041-01-01', '2060-12-31')
 future_3 = ('2081-01-01', '2100-12-31') 
+futures = [hist_baseline, future_1, future_2, future_3]
 
-future = future_1
+
 predictands = ['ERA5-Land0.25deg', 'E-OBS','AEMET_0.25deg', 'Iberia01_v1.0', 'pti-grid', 'CHELSA']
 # ERA y EOBS Listos, los otros 4 en pendiente
 #hist_baseline, future_1, future_2,
-for future in [future_3]:
+for future in futures:
     # Cargamos Predicciones a escenarios
+    print(f"Current period: {future}")
     yPredLoaded = {}
     yPredMetrics = {}
     for scenario in scenarios:
@@ -35,7 +37,6 @@ for future in [future_3]:
         yPredMetrics[scenario] = {}
         for predictand_name in predictands:
             modelName = f'DeepESD_tas_{predictand_name}' 
-            print(modelName)
             yPredLoaded[scenario][predictand_name] = xr.open_dataset(f'{PREDS_PATH}predGCM_{modelName}_{GCM_NAME}_{scenario}_{future[0]}-{future[1]}.nc')
             yPredMetrics[scenario][predictand_name] = utils.getMetricsTemp(yPredLoaded[scenario][predictand_name]) # CARGAMOS METRICAS
             utils.getGraphsTempGCM(yPredMetrics[scenario][predictand_name], scenario, FIGS_PATH, GCM_NAME, predictand_name)# REALIZAMOS GRAFICOS COMPARATIVOS
@@ -51,7 +52,6 @@ for future in [future_3]:
             yHistoMetrics[scenario][predictand_name] = utils.getMetricsTemp(yHisto[scenario][predictand_name]) # CARGAMOS METRICAS
             utils.getGraphsTempGCM(yHistoMetrics[scenario][predictand_name], scenario, FIGS_PATH, GCM_NAME, predictand_name)# REALIZAMOS GRAFICOS COMPARATIVOS
 
-    print("Terminado con exito!")
 
     metrics = ['mean', 'std', '99quantile', 'over30', 'over40', 'mean_max_mean']
     seasons = {'spring': 'MAM', 'summer': 'JJA', 'autumn': 'SON', 'winter': 'DJF'}
@@ -76,18 +76,35 @@ for future in [future_3]:
         print(f"{season_name} metricas cargadas!")
 
 
-    values = {'diff': {'over30': (-50, 50), 'over40': (-10, 10), 'std': (0, 10), 'else': (-5, 5)},
-            'noDiff': {'over30': (0, 500), 'over40': (0, 30), 'std': (0, 2.5), 'else': (-5, 45)}}   
+    values = {'diff': {'over30': (-50, 50), 'over40': (-10, 10), 'std': (0, 2), 'else': (-5, 5)},
+            'noDiff': {'over30': (0, 500), 'over40': (0, 30), 'std': (0, 10), 'else': (-5, 45)}}   
 
 
     years = f"{future[0].split('-')[0]}-{future[1].split('-')[0]}"
+
+
     for scenario in scenarios:
-        if scenario == scenarios[0]:
+        if scenario == scenarios[0] and future == future_1:
             values['diff']['else'] = (-4, 4)
-        elif scenario == scenarios[2]:
-            values['diff']['else'] = (-7, 7)
-        elif scenario == scenarios[3]:
-            values['diff']['else'] = (-9, 9)
-        utils.multiMapPerSeason(data_to_plot[scenario], metrics, plot_metrics, f'{FIGS_PATH}predictions', extra_path=f"{years}-{scenario}", values = values, color_extended=True)
+        elif scenario == scenarios[0] and future == future_2:
+            values['diff']['else'] = (-3, 7)
+        elif scenario == scenarios[0] and future == future_3:
+            values['diff']['else'] = (-2, 9)
+        elif scenario == scenarios[2] and future == future_1:
+            values['diff']['else'] = (-3, 4)
+        elif scenario == scenarios[2] and future == future_2:
+            values['diff']['else'] = (-2, 7)
+        elif scenario == scenarios[2] and future == future_3:
+            values['diff']['else'] = (-1, 9)
+        elif scenario == scenarios[3] and future == future_1:
+            values['diff']['else'] = (-3, 4)
+        elif scenario == scenarios[3] and future == future_2:
+            values['diff']['else'] = (-2, 7)
+        elif scenario == scenarios[3] and future == future_3:
+            values['diff']['else'] = (-1, 9)
+        
+        values_extended = True if scenario == scenarios[3] else False
+
+        utils.multiMapPerSeason(data_to_plot[scenario], metrics, plot_metrics, f'{FIGS_PATH}predictions', extra_path=f"{years}-{scenario}", values = values, values_extended=values_extended)
 
 print("TERMINADO CON EXITO!")

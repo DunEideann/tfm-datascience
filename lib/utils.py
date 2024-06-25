@@ -9,8 +9,17 @@ from scipy import signal, stats
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 from matplotlib.colors import ListedColormap, BoundaryNorm, LinearSegmentedColormap
-import time
 
+graph_dict = {
+        'mean': 'Mean',
+        '99quantile': 'Quantile 99',
+        '1quantile': 'Quantile 1',
+        'std': 'Standar Deviation',
+        'trend': 'Trend',
+        'over30': 'Days Over 30',
+        'over40': 'Days Over 40',
+        'mean_max_mean': 'Mean Max Mean'
+        }
 
 def checkUnitsTempt(data, var):
     """Check units of tempeture and transform them if necessary.
@@ -30,7 +39,7 @@ def checkUnitsTempt(data, var):
     return data
     
 
-def getMetricsTemp(data, var = None):#, mask=None):
+def getMetricsTemp(data, var = None, short = False):#, mask=None):
     """_summary_
 
     Args:
@@ -45,26 +54,34 @@ def getMetricsTemp(data, var = None):#, mask=None):
     val_mean_annual = data.resample(time = 'YE').mean()
     val_st = data.std(dim = 'time')
     val_99 = data.quantile(0.99, dim = 'time')
+    val_1 = data.quantile(0.01, dim='time')
     over30 = data[var].where(data[var] >= 30).count(dim='time').to_dataset(name=var)
     over30 = over30.where(over30 != 0, np.nan)
-    #over30 = filterByMask(mask=mask, data=over30_prep, var='tasmean').sum(dim='time')
     over40 = data[var].where(data[var] >= 40).count(dim='time').to_dataset(name=var)
     over40 = over40.where(over40 != 0, np.nan)
-    #over40 = filterByMask(mask=mask, data=over40_prep, var='tasmean').sum(dim='time')
     mean_max_mean = data.resample(time = 'YE').max(dim='time').mean(dim='time')
 
-    #over30 = data['tasmean'].where(data['tasmean'] >= 30 and data['tasmean'] != None).sum(dim='time', keep_attrs='all', skipna=True).to_dataset(name='tasmean')
-    #over40 = data['tasmean'].where(data['tasmean'] >= 40 and data['tasmean'] != None).sum(dim='time', keep_attrs='all', skipna=True).to_dataset(name='tasmean')
-
-    return {
+    if short:
+        response = {
         'mean': val_mean,
         '99quantile': val_99,
+        '1quantile': val_1,
+        'std': val_st,
+        'over30': over30
+        }
+    else:
+        response = {
+        'mean': val_mean,
+        '99quantile': val_99,
+        '1quantile': val_1,
         'std': val_st,
         'trend': val_mean_annual,
         'over30': over30,
         'over40': over40,
         'mean_max_mean': mean_max_mean
         }
+
+    return response
 
 def __graphTrend(metrics, season_name, folder_path, pred_name, extra = ''):
     """_summary_
@@ -1078,22 +1095,26 @@ def scalingDeltaCorrection(grid, refHist, refObs):
     return gridAux
 
 
-def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path = '', color_extended = False,
-                values = {'diff': {'over30': (-50, 50), 'over40': (-10, 10), 'std': (0, 10), 'else': (-3, 3)},
-                          'noDiff': {'over30': (0, 500), 'over40': (0, 30), 'std': (0, 1.5), 'else': (-5, 35)}
+def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path = '', values_extended = False,
+                values = {'diff': {'over30': (-50, 50), 'over40': (-10, 10), 'std': (0, 2), 'else': (-3, 3)},
+                          'noDiff': {'over30': (0, 500), 'over40': (0, 30), 'std': (0, 10), 'else': (-5, 35)}
                 }):
+    #TODO Arreglar parametros por color y agregar comentarios
     #cmap = plt.cm.bwr  # define the colormap
-    if color_extended:
-        list_colors = ['royalblue', 'cyan', 'magenta', 'yellow', 'orange', 'lightcoral']
-    else:
-        list_colors = ['royalblue', 'cyan', 'yellow', 'orange']
-    cmap = (ListedColormap(list_colors)
-            .with_extremes(over='red', under='blue'))
+    # if color_extended:
+    #     list_colors = ['royalblue', 'cyan', 'magenta', 'yellow', 'orange', 'lightcoral']
+    # else:
+    #     list_colors = ['royalblue', 'cyan', 'yellow', 'orange']
+    # cmap = (ListedColormap(list_colors)
+    #         .with_extremes(over='red', under='blue'))
+    numLevels = 10 if values_extended else 16
+    continuousCMAP = plt.get_cmap('hot_r')
+    discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
     # color_number = cmap.N if color_number == None else color_number
     # cmaplist = [cmap(i) for i in range(color_number)]
     # cmap = LinearSegmentedColormap.from_list(
     #     'Custom cmap', cmaplist, color_number)
-    start_time = time.time()
+    start_time = time()
     for graph_type, seasons_value in data_to_plot.items():
         for metric in metrics: 
             #Cambiar a un diccionario TODO
@@ -1111,22 +1132,15 @@ def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path
                     v_min = values['noDiff']['else'][0]
                     v_max = values['noDiff']['else'][1]
             else:
-                if metric == 'over30' or metric == 'over40':     
-                    v_min = values['diff'][metric][0]
-                    v_max = values['diff'][metric][1]
-                elif metric == 'std':
+                if metric == 'std':
                     v_min = values['diff'][metric][0]
                     v_max = values['diff'][metric][1]
                 else:
-                    v_min = values['diff']['else'][0]
-                    v_max = values['diff']['else'][1]
-            bounds = np.linspace(v_min, v_max, cmap.N +1)
-            bounds = np.round(bounds, 2)
-            #intervalos = np.arange(v_min, v_max+0.1, 10)
-            nRows, nCols = 6, 4
-            #fig = plt.figure(figsize=(20, 18))#, sharex = True, sharey = True)
-            fig, axes = plt.subplots(nRows, nCols, figsize=(20, 18), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
-            #gs = fig.add_gridspec(4, 6)
+                    v_min = 0
+                    v_max = 10 if values_extended else 8
+            
+            nRows, nCols = len(seasons_value['winter']), 4
+            fig, axes = plt.subplots(nRows, nCols, figsize=(20, nRows*3), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
             i = 0
             for season_name, predictand_value in seasons_value.items():
                 j = 0
@@ -1152,14 +1166,15 @@ def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path
                     im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
                                         dataToPlot,
                                         transform=ccrs.PlateCarree(),
-                                        cmap=cmap,
-                                        norm=BoundaryNorm(bounds, cmap.N))
+                                        cmap=discreteCMAP,
+                                        vmin=v_min, vmax=v_max)
+                                        #norm=BoundaryNorm(bounds, cmap.N))
                     #ax.grid(True)
                     j += 1
                 i += 1
 
             cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])
-            cbar = plt.colorbar(im, cax, pad=0.05, extend='both', extendfrac='auto', spacing='uniform')
+            cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')#, extend='both', extendfrac='auto', )
             #cbar = fig.colorbar(im, cax)#, cmap=cmap_discreto, norm=norm, boundaries=intervalos)#, pad = 0.02, shrink=0.8)
             #|fig.supylabel("HAIWHROIWR")
 
@@ -1168,7 +1183,7 @@ def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path
             plt.savefig(f'{FIGS_PATH}/comparisson_{metric}_{graph_type}{extra_path}.pdf')
             plt.close()
 
-    total_time = time.time() - start_time
+    total_time = time() - start_time
     print(f"El código de graficos de test se ejecutó en {total_time:.2f} segundos.")
 
 def graphsBaseGCM(objective, reference, save_path, color_extended=False):
@@ -1217,7 +1232,7 @@ def graphsBaseGCM(objective, reference, save_path, color_extended=False):
             if (v_max-v_min) == 0:
                 v_max = v_min +1
             print(f"Min: {v_min}, MAX: {v_max}")
-            bounds = np.linspace(v_min, v_max, cmap + 1)
+            bounds = np.linspace(v_min, v_max, cmap.N + 1)
             bounds = np.round(bounds, 2)
             ax = axes[i, j]
 
@@ -1228,13 +1243,7 @@ def graphsBaseGCM(objective, reference, save_path, color_extended=False):
 
             # Agregar una barra de color individual
             cbar = plt.colorbar(im, ax=ax, orientation='horizontal', pad=0.05, extend='both', extendfrac='auto', spacing='uniform')
-            # cbar = fig.colorbar(
-            #     ScalarMappable(cmap=cmap, norm=BoundaryNorm(bounds, cmap.N)),
-            #     cax=ax, orientation='horizontal',
-            #     extend='both', extendfrac='auto',
-            #     spacing='uniform',
-            #     label='Custom extension lengths, some other units',
-            # )
+
             im.set_clim(vmin=v_min, vmax=v_max)
 
             # Opcional: establecer título, etiquetas, etc.
@@ -1246,3 +1255,121 @@ def graphsBaseGCM(objective, reference, save_path, color_extended=False):
     plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.2, hspace=0.4)
     plt.savefig(save_path)
     plt.close()
+
+
+
+def getDataset(datasets, metric, var=None):
+    # Asignar valor por defecto a var si es None
+    if var is None:
+        var = 'tasmean'
+
+    # Calcular la media temporal para cada dataset
+    means = [dataset.mean(dim='time') for dataset in datasets.values()]
+
+    # Crear listas para almacenar los valores lat, lon y tasmean
+    lat_values = means[0].lat.values
+    lon_values = means[0].lon.values
+    tasmean_values = np.zeros((len(lat_values), len(lon_values)))
+
+    # Iterar sobre cada punto de la grilla
+    for i, lat in enumerate(lat_values):
+        for j, lon in enumerate(lon_values):
+            values = [datamean.sel(lat=lat, lon=lon)[var].values for datamean in means]
+            if metric == 'Min':
+                tasmean_values[i, j] = np.min(values)
+            elif metric == 'Max':
+                tasmean_values[i, j] = np.max(values)
+            else:
+                tasmean_values[i, j] = np.mean(values)
+
+    # Crear un nuevo DataArray con los valores calculados
+    tasmean_da = xr.DataArray(tasmean_values, coords=[lat_values, lon_values], dims=['lat', 'lon'])
+
+    # Crear un nuevo Dataset y añadir el DataArray
+    new_dataset = xr.Dataset({var: tasmean_da})
+
+    return new_dataset
+
+def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type):
+           
+    numLevels = 10
+    continuousCMAP = plt.get_cmap('hot_r')
+    discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
+    discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
+
+    start_time = time()
+    for period, period_data in datasets_metrics.items():
+        nRows, nCols = 5, 6
+        fig, axes = plt.subplots(nRows, nCols, figsize=(25, nRows*3), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+        for i, (predictand_name, predictand_data) in enumerate(period_data.items()): 
+            #Cambiar a un diccionario TODO
+            for j, (metric, metric_data) in enumerate(predictand_data.items()):
+
+                ax = axes[j, i]
+                if j == 0:
+                    ax.set_title(f'{predictand_name.capitalize()}', fontsize=16)
+                if i == 0:
+                    ax.text(-0.07, 0.55, graph_dict[metric], va='bottom', ha='center',
+                        rotation='vertical', rotation_mode='anchor',
+                        transform=ax.transAxes, fontsize=16)
+        
+                ax.coastlines(resolution='10m')
+                
+ 
+                dataToPlot = metric_data['tasmean']
+                im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
+                                    dataToPlot,
+                                    transform=ccrs.PlateCarree(),
+                                    cmap=discreteCMAP if metric != 'over30' else discreteCMAPnoWhite,
+                                    vmin=vmin[j], vmax=vmax[j])
+                                    #norm=BoundaryNorm(bounds, cmap.N))
+
+                if i == 0:
+                    cax = fig.add_axes([0.125, 0.056 + (4*0.18) - (j * 0.18), 0.776, 0.02]) #DIST DESDE IZQUIERDA/DIST DESDE ABAJO/LARDO HORI/LARGO/VERT
+                    cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform', orientation='horizontal')#, extend='both', extendfrac='auto', )
+                    cbar.set_ticks(np.linspace(vmin[j], vmax[j], 6))
+                    cbar.ax.tick_params(labelsize=10)
+
+        plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
+        plt.savefig(f'{figs_path}/metrics_{pred_type}_{period}.pdf')
+        plt.close()
+
+    total_time = time() - start_time
+    print(f"El código de graficos de test se ejecutó en {total_time:.2f} segundos.")
+
+
+def efemerideGraph(datasets_metrics, figs_path, vmin, vmax, pred_type):
+           
+    numLevels = 10
+    continuousCMAP = plt.get_cmap('hot_r')
+    discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
+    #discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
+
+    start_time = time()
+    nRows, nCols = 2, 3
+    fig, axes = plt.subplots(nRows, nCols, figsize=(15, nRows*3), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+    for counter, (predictand_name, predictand_data) in enumerate(datasets_metrics.items()): 
+        #Cambiar a un diccionario TODO
+        j = counter//nCols
+        i = counter%nCols
+        ax = axes[j, i]
+
+        ax.coastlines(resolution='10m')
+        ax.set_title(f'{predictand_name.capitalize()}', fontsize=16)
+        dataToPlot = predictand_data['tasmean']
+        im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
+                            dataToPlot,
+                            transform=ccrs.PlateCarree(),
+                            cmap=discreteCMAP,
+                            vmin=vmin, vmax=vmax)
+                            #norm=BoundaryNorm(bounds, cmap.N))
+
+        cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])
+        cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')#, extend='both', extendfrac='auto', )
+
+    plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
+    plt.savefig(f'{figs_path}/metrics_{pred_type}.pdf')
+    plt.close()
+
+    total_time = time() - start_time
+    print(f"El código de graficos de test se ejecutó en {total_time:.2f} segundos.")
