@@ -121,6 +121,27 @@ for period, data_metrics in whole_metrics.items():
     utils.metricsGraph(train_metrics[period], figs_path=FIGS_PATH, vmin=[0, 0, -5, 0, 1], vmax=[35, 40, 15, 15, 501], pred_type='prediction_train', fig_num = fig_num, period = period, extension='png')
     fig_num += Decimal('0.1')
 
+# DATOS DIFERENCIA TEST PRED - OBS
+diff_test_metrics = {'annual': {}, 'spring': {}, 'summer': {}, 'autumn': {}, 'winter': {}}
+
+for predictand_name in predictands:
+    diff_test_metrics['annual'][predictand_name] = {
+            key: test_metrics['annual'][predictand_name][key]-train_obs_metrics['annual'][predictand_name][key] 
+                if key != 'std' 
+                else test_metrics['annual'][predictand_name][key]/train_obs_metrics['annual'][predictand_name][key] 
+                for key in metrics}
+    for season_name, months in seasons.items():
+        diff_test_metrics[season_name][predictand_name] = {
+            key: test_metrics[season_name][predictand_name][key]-train_obs_metrics[season_name][predictand_name][key] 
+                if key != 'std' 
+                else test_metrics[season_name][predictand_name][key]/train_obs_metrics[season_name][predictand_name][key] 
+                for key in metrics}
+
+# # FIGURA 5
+fig_num = 5
+for period, data_metrics in diff_test_metrics.items():
+    utils.metricsGraph(data_metrics, figs_path=FIGS_PATH, vmin=[-1, -1, -1, 0.3, 1], vmax=[1.5, 1.5, 1.5, 1.3, 11], pred_type='diff_test', fig_num = fig_num, period = period, extension='png', noWhite=True)
+    fig_num += Decimal('0.1')
 
 
 # PREPARACION EFEMERIDES
@@ -149,7 +170,7 @@ for predictand_name in predictands:
     #             objective = obs_efemeride[predictand_name],
     #             secondGrid = obs_efemeride[predictand_name])
     
-    preds_efemeride[predictand_name] = obs[predictand_name].sel(time=slice(*(yearsTrain[0], yearsTest[1])))
+    preds_efemeride[predictand_name] = whole_preds['annual'][predictand_name].sel(time=slice(*(yearsTrain[0], yearsTest[1])))
     # preds_efemeride[predictand_name] = utils.maskData(
     #             path = f'{DATA_PATH_PREDICTANDS_SAVE}AEMET_0.25deg/AEMET_0.25deg_tasmean_1951-2022.nc',
     #             var='tasmean',
@@ -181,8 +202,8 @@ utils.efemerideGraph(efe_train_obs_hot, figs_path=FIGS_PATH, vmin=vmin[1], vmax=
 
 
 # FIGURA 6
-utils.efemerideGraph(efe_diff_cold, figs_path=FIGS_PATH, vmin=-2, vmax=2, pred_type=f'efemeride_diff_cold', title='Coldwave day predictions', fig_num = '6')
-utils.efemerideGraph(efe_diff_hot, figs_path=FIGS_PATH, vmin=-2, vmax=2, pred_type=f'efemeride_diff_hot', title='Heatwave day predictions', fig_num = '6')
+utils.efemerideGraph(efe_diff_cold, figs_path=FIGS_PATH, vmin=-2.5, vmax=2.5, pred_type=f'efemeride_diff_cold', title='Coldwave day predictions', fig_num = '6', extension='png')
+utils.efemerideGraph(efe_diff_hot, figs_path=FIGS_PATH, vmin=-2.5, vmax=2.5, pred_type=f'efemeride_diff_hot', title='Heatwave day predictions', fig_num = '6', extension='png')
 utils.efemerideGraph(efe_test_pred_cold, figs_path=FIGS_PATH, vmin=vmin[0], vmax=vmax[0], pred_type=f'efemeride_test_pred_cold', title='Coldwave day predictions', fig_num = '6.1', extension='png')
 utils.efemerideGraph(efe_test_pred_hot, figs_path=FIGS_PATH, vmin=vmin[1], vmax=vmax[1], pred_type=f'efemeride_test_pred_hot', title='Heatwave day predictions', fig_num = '6.1', extension='png')
 
@@ -297,8 +318,7 @@ plt.legend(loc='best')  # Añadir la leyenda
 # Mostrar el gráfico
 plt.savefig(f'{FIGS_PATH}/{figName}.png', bbox_inches='tight')
 plt.close()
-# for key, predi in long_preds['annual'].items():
-#     print(predi.tasmean.sel(lat = predi.coords['lat'].values[20], lon = predi.coords['lon'].values[32], time=predi.coords['time'].values[20]))
+
 
 
 # ANTIGUAS

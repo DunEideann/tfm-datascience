@@ -1290,11 +1290,15 @@ def getDataset(datasets, metric, var=None):
 
     return new_dataset
 
-def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, period, extension = 'pdf'):
+def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, period, extension = 'pdf', noWhite = False):
            
     numLevels = 10
     continuousCMAP = plt.get_cmap('hot_r')
-    discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
+    if noWhite == False:
+        discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
+    else:
+        discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
+
     discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
 
     start_time = time()
@@ -1405,7 +1409,7 @@ def efemerideGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, 
     numLevels = 10
     continuousCMAP = plt.get_cmap('hot_r')
     discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
-    #discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
+    discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
 
     start_time = time()
     nRows, nCols = 2, 3
@@ -1422,7 +1426,7 @@ def efemerideGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, 
         im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
                             dataToPlot,
                             transform=ccrs.PlateCarree(),
-                            cmap=discreteCMAP,
+                            cmap=discreteCMAPnoWhite,
                             vmin=vmin, vmax=vmax)
                             #norm=BoundaryNorm(bounds, cmap.N))
 
