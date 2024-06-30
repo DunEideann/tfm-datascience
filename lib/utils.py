@@ -1290,7 +1290,7 @@ def getDataset(datasets, metric, var=None):
 
     return new_dataset
 
-def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type):
+def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, period, extension = 'pdf'):
            
     numLevels = 10
     continuousCMAP = plt.get_cmap('hot_r')
@@ -1298,47 +1298,109 @@ def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type):
     discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
 
     start_time = time()
-    for period, period_data in datasets_metrics.items():
-        nRows, nCols = 5, 6
-        fig, axes = plt.subplots(nRows, nCols, figsize=(25, nRows*3), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
-        for i, (predictand_name, predictand_data) in enumerate(period_data.items()): 
-            #Cambiar a un diccionario TODO
-            for j, (metric, metric_data) in enumerate(predictand_data.items()):
+    #for period, period_data in datasets_metrics.items():
+    nRows, nCols = 5, 6
+    fig, axes = plt.subplots(nRows, nCols, figsize=(25, nRows*3), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+    for i, (predictand_name, predictand_data) in enumerate(datasets_metrics.items()): 
+        #Cambiar a un diccionario TODO
+        for j, (metric, metric_data) in enumerate(predictand_data.items()):
 
-                ax = axes[j, i]
-                if j == 0:
-                    ax.set_title(f'{predictand_name.capitalize()}', fontsize=16)
-                if i == 0:
-                    ax.text(-0.07, 0.55, graph_dict[metric], va='bottom', ha='center',
-                        rotation='vertical', rotation_mode='anchor',
-                        transform=ax.transAxes, fontsize=16)
-        
-                ax.coastlines(resolution='10m')
-                
- 
-                dataToPlot = metric_data['tasmean']
-                im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
-                                    dataToPlot,
-                                    transform=ccrs.PlateCarree(),
-                                    cmap=discreteCMAP if metric != 'over30' else discreteCMAPnoWhite,
-                                    vmin=vmin[j], vmax=vmax[j])
-                                    #norm=BoundaryNorm(bounds, cmap.N))
+            ax = axes[j, i]
+            if j == 0:
+                ax.set_title(f'{predictand_name.capitalize()}', fontsize=16)
+            if i == 0:
+                ax.text(-0.07, 0.55, graph_dict[metric], va='bottom', ha='center',
+                    rotation='vertical', rotation_mode='anchor',
+                    transform=ax.transAxes, fontsize=16)
+    
+            ax.coastlines(resolution='10m')
+            
 
-                if i == 0:
-                    cax = fig.add_axes([0.125, 0.056 + (4*0.18) - (j * 0.18), 0.776, 0.02]) #DIST DESDE IZQUIERDA/DIST DESDE ABAJO/LARDO HORI/LARGO/VERT
-                    cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform', orientation='horizontal')#, extend='both', extendfrac='auto', )
-                    cbar.set_ticks(np.linspace(vmin[j], vmax[j], 6))
-                    cbar.ax.tick_params(labelsize=10)
+            dataToPlot = metric_data['tasmean']
+            im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
+                                dataToPlot,
+                                transform=ccrs.PlateCarree(),
+                                cmap=discreteCMAP if metric != 'over30' else discreteCMAPnoWhite,
+                                vmin=vmin[j], vmax=vmax[j])
+                                #norm=BoundaryNorm(bounds, cmap.N))
 
-        plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
-        plt.savefig(f'{figs_path}/metrics_{pred_type}_{period}.pdf')
-        plt.close()
+            if i == 0:
+                cax = fig.add_axes([0.125, 0.056 + (4*0.18) - (j * 0.18), 0.776, 0.02]) #DIST DESDE IZQUIERDA/DIST DESDE ABAJO/LARDO HORI/LARGO/VERT
+                cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform', orientation='horizontal')#, extend='both', extendfrac='auto', )
+                cbar.set_ticks(np.linspace(vmin[j], vmax[j], 6))
+                cbar.ax.tick_params(labelsize=10)
+
+    plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
+    plt.savefig(f'{figs_path}/fig{fig_num}_metrics_{pred_type}_{period}.{extension}', bbox_inches='tight')
+    plt.close()
 
     total_time = time() - start_time
-    print(f"El código de graficos de test se ejecutó en {total_time:.2f} segundos.")
+    print(f"El código de graficos de {pred_type} se ejecutó en {total_time:.2f} segundos.")
 
 
-def efemerideGraph(datasets_metrics, figs_path, vmin, vmax, pred_type):
+def efemerideGraphMultiplie(datasets_metrics_1, datasets_metrics_2, figs_path, vmin, vmax, pred_type, fig_num, extension = 'pdf'):
+           
+    numLevels = 10
+    continuousCMAP = plt.get_cmap('hot_r')
+    discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
+    #discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
+
+    start_time = time()
+    nRows, nCols = 2, 3
+    fig, axes = plt.subplots(nRows, nCols, figsize=(15, nRows*3), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+    for counter, (predictand_name, predictand_data) in enumerate(datasets_metrics_1.items()): 
+        #Cambiar a un diccionario TODO
+        j = counter//nCols
+        i = counter%nCols
+        ax = axes[j, i]
+
+        ax.coastlines(resolution='10m')
+        ax.set_title(f'{predictand_name.capitalize()}', fontsize=16)
+        dataToPlot = predictand_data['tasmean']
+        im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
+                            dataToPlot,
+                            transform=ccrs.PlateCarree(),
+                            cmap=discreteCMAP,
+                            vmin=vmin[0], vmax=vmax[0])
+                            #norm=BoundaryNorm(bounds, cmap.N))
+
+        if counter == 0:
+            cax = fig.add_axes([0.91, 0.51, 0.04, 0.425])
+            cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')#, extend='both', extendfrac='auto', )
+
+    for counter, (predictand_name, predictand_data) in enumerate(datasets_metrics_2.items()): 
+        counter += 6
+        #Cambiar a un diccionario TODO
+        j = counter//nCols
+        i = counter%nCols
+        print(f"counter:{counter}, i:{i}, j:{j}")
+        ax = axes[j, i]
+
+        ax.coastlines(resolution='10m')
+        ax.set_title(f'{predictand_name.capitalize()}', fontsize=16)
+        dataToPlot = predictand_data['tasmean']
+        im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
+                            dataToPlot,
+                            transform=ccrs.PlateCarree(),
+                            cmap=discreteCMAP,
+                            vmin=vmin[1], vmax=vmax[1])
+                            #norm=BoundaryNorm(bounds, cmap.N))
+
+        if counter == 6:
+            cax = fig.add_axes([0.91, 0.06, 0.04, 0.425])
+            cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')#, extend='both', extendfrac='auto', )
+
+    fig.text(0.5, 0.94, 'Título para los 6 gráficos superiores', ha='center', fontsize=18)
+    fig.text(0.5, 0.49, 'Título para los 6 gráficos inferiores', ha='center', fontsize=18)
+
+    plt.subplots_adjust(top=0.93, bottom=0.07, wspace=0.002, hspace=0.2) #95 05
+    plt.savefig(f'{figs_path}/fig{fig_num}metrics_{pred_type}.{extension}')#, bbox_inches='tight')
+    plt.close()
+
+    total_time = time() - start_time
+    print(f"El código de graficos de {pred_type} se ejecutó en {total_time:.2f} segundos.")
+
+def efemerideGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, title, extension = 'pdf'):
            
     numLevels = 10
     continuousCMAP = plt.get_cmap('hot_r')
@@ -1364,12 +1426,17 @@ def efemerideGraph(datasets_metrics, figs_path, vmin, vmax, pred_type):
                             vmin=vmin, vmax=vmax)
                             #norm=BoundaryNorm(bounds, cmap.N))
 
-        cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])
-        cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')#, extend='both', extendfrac='auto', )
+        if counter == 0:
+            cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])#fig.add_axes([0.91, 0.51, 0.04, 0.425])
+            cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')#, extend='both', extendfrac='auto', )
 
-    plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
-    plt.savefig(f'{figs_path}/metrics_{pred_type}.pdf')
+    #fig.suptitle(title, fontsize=20)
+    #fig.text(0.5, 0.94, 'Título para los 6 gráficos superiores', ha='center', fontsize=18)
+    #fig.text(0.5, 0.49, 'Título para los 6 gráficos inferiores', ha='center', fontsize=18)
+
+    plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.2) #95 05
+    plt.savefig(f'{figs_path}/fig{fig_num}metrics_{pred_type}.{extension}', bbox_inches='tight')
     plt.close()
 
     total_time = time() - start_time
-    print(f"El código de graficos de test se ejecutó en {total_time:.2f} segundos.")
+    print(f"El código de graficos de {pred_type} se ejecutó en {total_time:.2f} segundos.")

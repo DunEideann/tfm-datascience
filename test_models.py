@@ -28,8 +28,9 @@ hist_reference = ('1980-01-01', '2014-12-31')
 hist_baseline = ('1995-01-01', '2014-12-31') #95-14
 future_1 = ('2021-01-01', '2040-12-31')
 future_2 = ('2041-01-01', '2060-12-31')
-future_3 = ('2081-01-01', '2100-12-31') 
-periods = [hist_baseline, future_1, future_2, future_3]
+future_3 = ('2081-01-01', '2100-12-31')
+future_4 = ('2061-01-01', '2080-12-31')
+periods = [hist_baseline, future_1, future_2, future_3, future_4]
 yearsTrain = ('1980-01-01', '2003-12-31')
 yearsTest = ('2004-01-01', '2015-12-31')
 
