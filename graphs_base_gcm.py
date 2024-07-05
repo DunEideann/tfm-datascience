@@ -4,8 +4,8 @@ from lib import utils, models, data
 import sys, time
 import numpy as np
 
-DATA_PATH_PREDICTORS = '/lustre/gmeteo/PTICLIMA/DATA/PROJECTIONS/CMIP6_PNACC/CMIP6_models/'
-FIGS_PATH = '/lustre/gmeteo/WORK/reyess/figs/GCM_Base/'
+DATA_PATH_PREDICTORS = '(.....)/PTICLIMA/DATA/PROJECTIONS/CMIP6_PNACC/CMIP6_models/'
+FIGS_PATH = '(.....)/figs/GCM_Base/'
 GCM_NAME = 'EC-Earth3-Veg'
 LAT_SLICE = slice(33.5, 48.6)
 LON_SLICE = slice(-10.5, 4.6)

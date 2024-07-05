@@ -6,13 +6,13 @@ from lib import utils, models, data, settings
 import time
 from matplotlib.colors import ListedColormap, BoundaryNorm, LinearSegmentedColormap
 
-FIGS_PATH_OBS = '/lustre/gmeteo/WORK/reyess/figs/cross_observations'
-FIGS_PATH = '/lustre/gmeteo/WORK/reyess/figs/cross_models'
-FIGS_PATH_HISTO = '/lustre/gmeteo/WORK/reyess/figs/hist'
-PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/'
-DATA_PATH_PREDICTANDS_SAVE = '/lustre/gmeteo/WORK/reyess/data/predictand/'
-DATA_PREDICTORS_TRANSFORMED = '/lustre/gmeteo/WORK/reyess/data/NorthAtlanticRegion_1.5degree/'
-MODELS_PATH = '/oceano/gmeteo/users/reyess/tfm/official-code/models'
+FIGS_PATH_OBS = '(.....)/figs/cross_observations'
+FIGS_PATH = '(.....)/figs/cross_models'
+FIGS_PATH_HISTO = '(.....)/figs/hist'
+PREDS_PATH = '(.....)/preds/'
+DATA_PATH_PREDICTANDS_SAVE = '(.....)/data/predictand/'
+DATA_PREDICTORS_TRANSFORMED = '(.....)/data/NorthAtlanticRegion_1.5degree/'
+MODELS_PATH = '(.....)/models'
 
 predictands = ['E-OBS', 'AEMET_0.25deg', 'Iberia01_v1.0', 'pti-grid', 'CHELSA', 'ERA5-Land0.25deg']
 seasons = {'spring': 'MAM', 'summer': 'JJA', 'autumn': 'SON', 'winter': 'DJF'}

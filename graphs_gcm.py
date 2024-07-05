@@ -4,13 +4,13 @@ from lib import utils, models, data
 import sys, time
 import numpy as np
 
-DATA_PATH_PREDICTORS = '/lustre/gmeteo/PTICLIMA/DATA/PROJECTIONS/CMIP6_PNACC/CMIP6_models/'
-DATA_PATH_PREDICTANDS_READ = '/lustre/gmeteo/PTICLIMA/DATA/AUX/GRID_INTERCOMP/'
-DATA_PATH_PREDICTANDS_SAVE = '/lustre/gmeteo/WORK/reyess/data/predictand/'
-FIGS_PATH = '/lustre/gmeteo/WORK/reyess/figs/GCM/'
-MODELS_PATH = '/oceano/gmeteo/users/reyess/tfm/official-code/models'
-DATA_PREDICTORS_TRANSFORMED = '/lustre/gmeteo/WORK/reyess/data/NorthAtlanticRegion_1.5degree/'
-PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/GCM/'#GCM
+DATA_PATH_PREDICTORS = '(.....)/PTICLIMA/DATA/PROJECTIONS/CMIP6_PNACC/CMIP6_models/'
+DATA_PATH_PREDICTANDS_READ = '(.....)/PTICLIMA/DATA/AUX/GRID_INTERCOMP/'
+DATA_PATH_PREDICTANDS_SAVE = '(.....)/data/predictand/'
+FIGS_PATH = '(.....)/figs/GCM/'
+MODELS_PATH = '(.....)/models'
+DATA_PREDICTORS_TRANSFORMED = '(.....)/data/NorthAtlanticRegion_1.5degree/'
+PREDS_PATH = '(.....)/preds/GCM/'#GCM
 VARIABLES_TO_DROP = ['lon_bnds', 'lat_bnds', 'crs']
 GCM_NAME = 'EC-Earth3-Veg'
 
