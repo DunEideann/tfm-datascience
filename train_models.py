@@ -24,8 +24,7 @@ VARIABLES_TO_DROP = ['lon_bnds', 'lat_bnds', 'crs']
 LAT_SLICE = slice(33.5, 48.6)
 LON_SLICE = slice(-10.5, 4.6)
 PREDICTAND_NAME = sys.argv[1]
-#PREDICTAND_NAME = 'E-OBS' PREDICTAND_NAME = 'AEMET_0.25deg' PREDICTAND_NAME = 'Iberia01_v1.0' 
-# PREDICTAND_NAME = 'pti-grid' PREDICTAND_NAME = 'CHELSA' PREDICTAND_NAME = 'ERA5-Land0.25deg'
+
 
 
 predictors_vars = ['t500', 't700', 't850', # Air temperature at 500, 700, 850 hPa
@@ -63,7 +62,6 @@ print("Predictores terminados!")
 file_name = utils.getFileName(DATA_PATH_PREDICTANDS_SAVE, PREDICTAND_NAME, keyword = 'tasmean')
 
 
-#/oceano/gmeteo/users/reyess/tfm/official-code
 predictand_path = f'{DATA_PATH_PREDICTANDS_SAVE}{PREDICTAND_NAME}/{file_name}'
 predictand = xr.open_dataset(predictand_path,
                              chunks=-1) # Near surface air temperature (daily mean)
@@ -107,7 +105,6 @@ baseMask = utils.obtainMask(
     var='tasmean',
     to_slice=(yearsTrain[0], yearsTest[1]))
 yTrainFlat = baseMask.flatten(grid=yTrain, var='tasmean')
-#plt.figure(); yTrain['tasmean'].mean('time').plot(); plt.savefig('./yTestPre.pdf')
 
 # Extract the raw data from the xarray Dataset
 yTrainFlat_array = utils.toArray(yTrainFlat)

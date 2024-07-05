@@ -6,17 +6,16 @@ import numpy as np
 from decimal import Decimal
 import matplotlib.pyplot as plt
 
-DATA_PATH_PREDICTORS = '/lustre/gmeteo/PTICLIMA/DATA/PROJECTIONS/CMIP6_PNACC/CMIP6_models/'
-DATA_PATH_PREDICTANDS_READ = '/lustre/gmeteo/PTICLIMA/DATA/AUX/GRID_INTERCOMP/'
-DATA_PATH_PREDICTANDS_SAVE = '/lustre/gmeteo/WORK/reyess/data/predictand/'
-FIGS_PATH = '/lustre/gmeteo/WORK/reyess/figs/GCM/TFM2/'
-MODELS_PATH = '/oceano/gmeteo/users/reyess/tfm/official-code/models'
-DATA_PREDICTORS_TRANSFORMED = '/lustre/gmeteo/WORK/reyess/data/NorthAtlanticRegion_1.5degree/'
-PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/'
+DATA_PATH_PREDICTORS = '(.....)/PTICLIMA/DATA/PROJECTIONS/CMIP6_PNACC/CMIP6_models/'
+DATA_PATH_PREDICTANDS_READ = '(.....)/PTICLIMA/DATA/AUX/GRID_INTERCOMP/'
+DATA_PATH_PREDICTANDS_SAVE = '(.....)/data/predictand/'
+FIGS_PATH = '(.....)/figs/GCM/TFM2/'
+MODELS_PATH = '(.....)/models'
+DATA_PREDICTORS_TRANSFORMED = '(.....)/NorthAtlanticRegion_1.5degree/'
+PREDS_PATH = '(.....)/preds/'
 VARIABLES_TO_DROP = ['lon_bnds', 'lat_bnds', 'crs']
 GCM_NAME = 'EC-Earth3-Veg'
-#TODO SACAR DE ESTE CODIGO TODO LO INECESARIO
-#TODO Ciclos for no mas de 1??
+
 scenarios = ['ssp585'] #'ssp126', 'ssp245', 'ssp370', 
 hist_reference = ('1980-01-01', '2014-12-31')
 hist_baseline = ('1995-01-01', '2014-12-31') #95-14

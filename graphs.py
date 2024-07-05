@@ -6,10 +6,9 @@ from lib import utils, models, data
 import time
 from matplotlib.colors import ListedColormap, BoundaryNorm, LinearSegmentedColormap
 
-# TODO DEFINIR PATHS GLOBALES CON DETALLES AL FINAL Y QUE SE CREEN AUTOMATICO
-FIGS_PATH = '/lustre/gmeteo/WORK/reyess/figs/'
-PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/'
-DATA_PATH_PREDICTANDS_SAVE = '/lustre/gmeteo/WORK/reyess/data/predictand/'
+FIGS_PATH = '(.....)/figs/'
+PREDS_PATH = '(.....)preds/'
+DATA_PATH_PREDICTANDS_SAVE = '(.....)/data/predictand/'
 
 predictands = ['E-OBS', 'AEMET_0.25deg', 'Iberia01_v1.0', 'pti-grid', 'CHELSA', 'ERA5-Land0.25deg']
 
