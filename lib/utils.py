@@ -106,8 +106,6 @@ def __graphTrend(metrics, season_name, folder_path, pred_name, extra = ''):
 
 
     # Loop through latitudes and longitudes, performing calculations and filling DataArrays
-    #y_pred_metrics
-    # TODO : Evitar 2 ciclos for usando zip o map o product
     for i, lat in enumerate(lats):
         for j, lon in enumerate(lons):
             slope_val, intercept_val, r_val, p_val, std_err_val = stats.linregress(
@@ -1099,21 +1097,11 @@ def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path
                 values = {'diff': {'over30': (-50, 50), 'over40': (-10, 10), 'std': (0, 2), 'else': (-3, 3)},
                           'noDiff': {'over30': (0, 500), 'over40': (0, 30), 'std': (0, 10), 'else': (-5, 35)}
                 }):
-    #TODO Arreglar parametros por color y agregar comentarios
-    #cmap = plt.cm.bwr  # define the colormap
-    # if color_extended:
-    #     list_colors = ['royalblue', 'cyan', 'magenta', 'yellow', 'orange', 'lightcoral']
-    # else:
-    #     list_colors = ['royalblue', 'cyan', 'yellow', 'orange']
-    # cmap = (ListedColormap(list_colors)
-    #         .with_extremes(over='red', under='blue'))
+
     numLevels = 10 if values_extended else 16
     continuousCMAP = plt.get_cmap('hot_r')
     discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
-    # color_number = cmap.N if color_number == None else color_number
-    # cmaplist = [cmap(i) for i in range(color_number)]
-    # cmap = LinearSegmentedColormap.from_list(
-    #     'Custom cmap', cmaplist, color_number)
+
     start_time = time()
     for graph_type, seasons_value in data_to_plot.items():
         for metric in metrics: 
@@ -1168,18 +1156,15 @@ def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path
                                         transform=ccrs.PlateCarree(),
                                         cmap=discreteCMAP,
                                         vmin=v_min, vmax=v_max)
-                                        #norm=BoundaryNorm(bounds, cmap.N))
-                    #ax.grid(True)
+
                     j += 1
                 i += 1
 
             cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])
-            cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')#, extend='both', extendfrac='auto', )
-            #cbar = fig.colorbar(im, cax)#, cmap=cmap_discreto, norm=norm, boundaries=intervalos)#, pad = 0.02, shrink=0.8)
-            #|fig.supylabel("HAIWHROIWR")
+            cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')
+
 
             plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
-            #plt.setp(axes[0, 0].get_ylabel, visible=True)
             plt.savefig(f'{FIGS_PATH}/comparisson_{metric}_{graph_type}{extra_path}.pdf')
             plt.close()
 
@@ -1189,7 +1174,6 @@ def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path
 def graphsBaseGCM(objective, reference, save_path, color_extended=False):
     diff = {}
     del objective['trend']
-    #del reference['trend']
     for key in objective.keys():
         if key == 'std':
             diff[key] = objective[key] / reference[key]
@@ -1206,7 +1190,6 @@ def graphsBaseGCM(objective, reference, save_path, color_extended=False):
     cmap = (ListedColormap(list_colors)
             .with_extremes(over='red', under='blue'))
 
-    #print(f"SHAPE DE DATASETS: {objective.shape}")
     # Generar y mostrar datos en cada subgráfico
     for i, key in enumerate(objective.keys()):
         if key == 'trend':
@@ -1326,11 +1309,11 @@ def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, pe
                                 transform=ccrs.PlateCarree(),
                                 cmap=discreteCMAP if metric != 'over30' else discreteCMAPnoWhite,
                                 vmin=vmin[j], vmax=vmax[j])
-                                #norm=BoundaryNorm(bounds, cmap.N))
+
 
             if i == 0:
-                cax = fig.add_axes([0.125, 0.056 + (4*0.18) - (j * 0.18), 0.776, 0.02]) #DIST DESDE IZQUIERDA/DIST DESDE ABAJO/LARDO HORI/LARGO/VERT
-                cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform', orientation='horizontal')#, extend='both', extendfrac='auto', )
+                cax = fig.add_axes([0.125, 0.056 + (4*0.18) - (j * 0.18), 0.776, 0.02]) 
+                cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform', orientation='horizontal')
                 cbar.set_ticks(np.linspace(vmin[j], vmax[j], 6))
                 cbar.ax.tick_params(labelsize=16)
 
@@ -1347,13 +1330,11 @@ def efemerideGraphMultiplie(datasets_metrics_1, datasets_metrics_2, figs_path, v
     numLevels = 10
     continuousCMAP = plt.get_cmap('hot_r')
     discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
-    #discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
 
     start_time = time()
     nRows, nCols = 2, 3
     fig, axes = plt.subplots(nRows, nCols, figsize=(15, nRows*3), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
     for counter, (predictand_name, predictand_data) in enumerate(datasets_metrics_1.items()): 
-        #Cambiar a un diccionario TODO
         j = counter//nCols
         i = counter%nCols
         ax = axes[j, i]
@@ -1366,11 +1347,11 @@ def efemerideGraphMultiplie(datasets_metrics_1, datasets_metrics_2, figs_path, v
                             transform=ccrs.PlateCarree(),
                             cmap=discreteCMAP,
                             vmin=vmin[0], vmax=vmax[0])
-                            #norm=BoundaryNorm(bounds, cmap.N))
+
 
         if counter == 0:
             cax = fig.add_axes([0.91, 0.51, 0.04, 0.425])
-            cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')#, extend='both', extendfrac='auto', )
+            cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')
 
     for counter, (predictand_name, predictand_data) in enumerate(datasets_metrics_2.items()): 
         counter += 6
@@ -1388,17 +1369,16 @@ def efemerideGraphMultiplie(datasets_metrics_1, datasets_metrics_2, figs_path, v
                             transform=ccrs.PlateCarree(),
                             cmap=discreteCMAP,
                             vmin=vmin[1], vmax=vmax[1])
-                            #norm=BoundaryNorm(bounds, cmap.N))
 
         if counter == 6:
             cax = fig.add_axes([0.91, 0.06, 0.04, 0.425])
-            cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')#, extend='both', extendfrac='auto', )
+            cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')
 
     fig.text(0.5, 0.94, 'Título para los 6 gráficos superiores', ha='center', fontsize=18)
     fig.text(0.5, 0.49, 'Título para los 6 gráficos inferiores', ha='center', fontsize=18)
 
-    plt.subplots_adjust(top=0.93, bottom=0.07, wspace=0.002, hspace=0.2) #95 05
-    plt.savefig(f'{figs_path}/fig{fig_num}metrics_{pred_type}.{extension}')#, bbox_inches='tight')
+    plt.subplots_adjust(top=0.93, bottom=0.07, wspace=0.002, hspace=0.2)
+    plt.savefig(f'{figs_path}/fig{fig_num}metrics_{pred_type}.{extension}')
     plt.close()
 
     total_time = time() - start_time
@@ -1412,7 +1392,6 @@ def efemerideGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, 
     discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
     if color != 'hot_r':
         colors = list(discreteCMAPnoWhite.colors)
-        #colors[4] = (1.0, 1.0, 1.0, 1.0)  # Blanco (RGBA)
         if color_change == None:
             colors[4] = (1, 239/255, 239/255, 1.0) # Light red
         else:
@@ -1437,16 +1416,12 @@ def efemerideGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, 
                             transform=ccrs.PlateCarree(),
                             cmap=discreteCMAPnoWhite,
                             vmin=vmin, vmax=vmax)
-                            #norm=BoundaryNorm(bounds, cmap.N))
 
         if counter == 0:
-            cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])#fig.add_axes([0.91, 0.51, 0.04, 0.425])
-            cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')#, extend='both', extendfrac='auto', )
+            cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])
+            cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')
             cbar.ax.tick_params(labelsize=18)
 
-    #fig.suptitle(title, fontsize=20)
-    #fig.text(0.5, 0.94, 'Título para los 6 gráficos superiores', ha='center', fontsize=18)
-    #fig.text(0.5, 0.49, 'Título para los 6 gráficos inferiores', ha='center', fontsize=18)
 
     plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.2) #95 05
     plt.savefig(f'{figs_path}/fig{fig_num}metrics_{pred_type}.{extension}', bbox_inches='tight')
