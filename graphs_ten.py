@@ -13,8 +13,6 @@ DATA_PREDICTORS_TRANSFORMED = '/lustre/gmeteo/WORK/reyess/data/NorthAtlanticRegi
 PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/GCM/AEMET/'
 VARIABLES_TO_DROP = ['lon_bnds', 'lat_bnds', 'crs']
 GCM_NAME = 'EC-Earth3-Veg'
-#TODO SACAR DE ESTE CODIGO TODO LO INECESARIO
-#TODO Ciclos for no mas de 1??
 scenarios = ['ssp585'] #'ssp126', 'ssp245', 'ssp370', 
 hist_reference = ('1980-01-01', '2014-12-31')
 hist_baseline = ('1995-01-01', '2014-12-31') #95-14

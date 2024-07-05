@@ -87,6 +87,10 @@ for period, data_metrics in whole_obs_metrics.items():
 train_preds = {'annual': {}, 'spring': {}, 'summer': {}, 'autumn': {}, 'winter': {}}
 train_metrics = {'annual': {}, 'spring': {}, 'summer': {}, 'autumn': {}, 'winter': {}}
 test_preds = {'annual': {}, 'spring': {}, 'summer': {}, 'autumn': {}, 'winter': {}}
+# DATOS PREDICCION
+train_preds = {'annual': {}, 'spring': {}, 'summer': {}, 'autumn': {}, 'winter': {}}
+train_metrics = {'annual': {}, 'spring': {}, 'summer': {}, 'autumn': {}, 'winter': {}}
+test_preds = {'annual': {}, 'spring': {}, 'summer': {}, 'autumn': {}, 'winter': {}}
 test_metrics = {'annual': {}, 'spring': {}, 'summer': {}, 'autumn': {}, 'winter': {}}
 whole_preds = {'annual': {}, 'spring': {}, 'summer': {}, 'autumn': {}, 'winter': {}}
 whole_metrics = {'annual': {}, 'spring': {}, 'summer': {}, 'autumn': {}, 'winter': {}}
@@ -101,6 +105,16 @@ for predictand_name in predictands:
     train_metrics['annual'][predictand_name] = utils.getMetricsTemp(train_preds['annual'][predictand_name], short = True)
     test_metrics['annual'][predictand_name] = utils.getMetricsTemp(test_preds['annual'][predictand_name], short = True)
     whole_metrics['annual'][predictand_name] = utils.getMetricsTemp(whole_preds['annual'][predictand_name], short = True)
+
+    for season_name, months in seasons.items():
+        train_preds[season_name][predictand_name] = train_preds['annual'][predictand_name].isel(time = (train_preds['annual'][predictand_name].time.dt.season == months))
+        test_preds[season_name][predictand_name] = test_preds['annual'][predictand_name].isel(time = (test_preds['annual'][predictand_name].time.dt.season == months))
+        whole_preds[season_name][predictand_name] = whole_preds['annual'][predictand_name].isel(time = (whole_preds['annual'][predictand_name].time.dt.season == months))
+
+        train_metrics[season_name][predictand_name] = utils.getMetricsTemp(train_preds[season_name][predictand_name], short = True)
+        test_metrics[season_name][predictand_name] = utils.getMetricsTemp(test_preds[season_name][predictand_name], short = True)
+        whole_metrics[season_name][predictand_name] = utils.getMetricsTemp(whole_preds[season_name][predictand_name], short = True)
+
 
     for season_name, months in seasons.items():
         train_preds[season_name][predictand_name] = train_preds['annual'][predictand_name].isel(time = (train_preds['annual'][predictand_name].time.dt.season == months))
@@ -140,7 +154,7 @@ for predictand_name in predictands:
 # # FIGURA 5
 fig_num = 5
 for period, data_metrics in diff_test_metrics.items():
-    utils.metricsGraph(data_metrics, figs_path=FIGS_PATH, vmin=[-1, -1, -1, 0.3, 1], vmax=[1.5, 1.5, 1.5, 1.3, 11], pred_type='diff_test', fig_num = fig_num, period = period, extension='png', noWhite=True)
+    utils.metricsGraph(data_metrics, figs_path=FIGS_PATH, vmin=[-1, -1, -1, 0.5, 1], vmax=[1.5, 1.5, 1.5, 1.25, 11], pred_type='diff_test', fig_num = fig_num, period = period, extension='png', noWhite=True)
     fig_num += Decimal('0.1')
 
 
@@ -195,16 +209,16 @@ vmin = (-10, 15)
 vmax = (15, 40)
 
 # FIGURA 4
-utils.efemerideGraph(efe_test_obs_cold, figs_path=FIGS_PATH, vmin=vmin[0], vmax=vmax[0], pred_type=f'efemeride_test_obs_cold', title='Coldwave day observations', fig_num = '4', extension='png')
+utils.efemerideGraph(efe_test_obs_cold, figs_path=FIGS_PATH, vmin=vmin[0], vmax=vmax[0], pred_type=f'efemeride_test_obs_cold', title='Coldwave day observations', fig_num = '4', extension='png', color='coolwarm')
 utils.efemerideGraph(efe_test_obs_hot, figs_path=FIGS_PATH, vmin=vmin[1], vmax=vmax[1], pred_type=f'efemeride_test_obs_hot', title='Heatwave day observations', fig_num = '4', extension='png')
-utils.efemerideGraph(efe_train_obs_cold, figs_path=FIGS_PATH, vmin=vmin[0], vmax=vmax[0], pred_type=f'efemeride_train_obs_cold', title='Coldwave day observations', fig_num = '4.1', extension='png')
+utils.efemerideGraph(efe_train_obs_cold, figs_path=FIGS_PATH, vmin=vmin[0], vmax=vmax[0], pred_type=f'efemeride_train_obs_cold', title='Coldwave day observations', fig_num = '4.1', extension='png', color='coolwarm')
 utils.efemerideGraph(efe_train_obs_hot, figs_path=FIGS_PATH, vmin=vmin[1], vmax=vmax[1], pred_type=f'efemeride_train_obs_hot', title='Heatwave day observations', fig_num = '4.1', extension='png')
 
 
 # FIGURA 6
-utils.efemerideGraph(efe_diff_cold, figs_path=FIGS_PATH, vmin=-2.5, vmax=2.5, pred_type=f'efemeride_diff_cold', title='Coldwave day predictions', fig_num = '6', extension='png')
+utils.efemerideGraph(efe_diff_cold, figs_path=FIGS_PATH, vmin=-2.5, vmax=2.5, pred_type=f'efemeride_diff_cold', title='Coldwave day predictions', fig_num = '6', extension='png', color='coolwarm', color_change = (4, (230/255, 242/255, 1, 1.0)))
 utils.efemerideGraph(efe_diff_hot, figs_path=FIGS_PATH, vmin=-2.5, vmax=2.5, pred_type=f'efemeride_diff_hot', title='Heatwave day predictions', fig_num = '6', extension='png')
-utils.efemerideGraph(efe_test_pred_cold, figs_path=FIGS_PATH, vmin=vmin[0], vmax=vmax[0], pred_type=f'efemeride_test_pred_cold', title='Coldwave day predictions', fig_num = '6.1', extension='png')
+utils.efemerideGraph(efe_test_pred_cold, figs_path=FIGS_PATH, vmin=vmin[0], vmax=vmax[0], pred_type=f'efemeride_test_pred_cold', title='Coldwave day predictions', fig_num = '6.1', extension='png', color='coolwarm')
 utils.efemerideGraph(efe_test_pred_hot, figs_path=FIGS_PATH, vmin=vmin[1], vmax=vmax[1], pred_type=f'efemeride_test_pred_hot', title='Heatwave day predictions', fig_num = '6.1', extension='png')
 
 
@@ -223,7 +237,7 @@ for predictand_name in predictands:
 
 fig_num = 7
 for period, data_metrics in long_metrics.items(): 
-    utils.metricsGraph(data_metrics, figs_path=FIGS_PATH, vmin=[0, 0, -10, 0, 1], vmax=[40, 50, 20, 15, 3001], pred_type='ssp585', fig_num = fig_num, period = period, extension='png')
+    utils.metricsGraph(data_metrics, figs_path=FIGS_PATH, vmin=[0, 0, -10, 3, 1], vmax=[40, 50, 20, 13, 3001], pred_type='ssp585', fig_num = fig_num, period = period, extension='png')
     fig_num += Decimal('0.1')
 
 # FIGURA 8:
@@ -255,7 +269,7 @@ for period, data_metrics in diff_metrics.items():
 
 
 # FIGURA EXTRA:
-past_timeline = ('1970-01-01', '2020-01-01')
+past_timeline = ('1970-01-01', '2020-12-31')
 hist_baseline = ('1995-01-01', '2014-12-31') #95-14
 future_1 = ('2021-01-01', '2040-12-31')
 future_2 = ('2041-01-01', '2060-12-31')
@@ -282,9 +296,8 @@ for predictand_name in predictands:
                 path = f'{DATA_PATH_PREDICTANDS_SAVE}AEMET_0.25deg/AEMET_0.25deg_tasmean_1951-2022.nc',
                 var='tasmean',
                 to_slice=(yearsTrain[0], yearsTest[1]),
-                objective = obs_temp[predictand_name],
+                objective = obs2[predictand_name].sel(time=slice(*(past_timeline[0], past_timeline[1]))),
                 secondGrid = obs_temp[predictand_name])
-    obs2[predictand_name] = obs2[predictand_name].sel(time=slice(*(past_timeline[0], past_timeline[1])))
     
     for future in futures:
         gcms_futures.append(xr.open_dataset(f'{PREDS_PATH}GCM/predGCM_{modelName}_{GCM_NAME}_{main_scenerio}_{future[0]}-{future[1]}.nc'))
@@ -309,10 +322,12 @@ for key, dataset in hist_gcm_mean.items():
     # Graficar los valores de 'tasmean' contra los años
     plt.plot(years, tasmean_values, label=key)
 
+# Añadir una línea punteada vertical en el año 2021
+plt.axvline(x=2021, color='r', linestyle='--', linewidth=1)
+
 # Configurar etiquetas y título
 plt.xlabel('Year')
 plt.ylabel('Tasmean')
-#plt.title('Tasmean Values Over Time for Different Datasets')
 plt.legend(loc='best')  # Añadir la leyenda
 
 # Mostrar el gráfico

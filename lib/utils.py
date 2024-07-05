@@ -1332,7 +1332,7 @@ def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, pe
                 cax = fig.add_axes([0.125, 0.056 + (4*0.18) - (j * 0.18), 0.776, 0.02]) #DIST DESDE IZQUIERDA/DIST DESDE ABAJO/LARDO HORI/LARGO/VERT
                 cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform', orientation='horizontal')#, extend='both', extendfrac='auto', )
                 cbar.set_ticks(np.linspace(vmin[j], vmax[j], 6))
-                cbar.ax.tick_params(labelsize=10)
+                cbar.ax.tick_params(labelsize=16)
 
     plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
     plt.savefig(f'{figs_path}/fig{fig_num}_metrics_{pred_type}_{period}.{extension}', bbox_inches='tight')
@@ -1404,12 +1404,21 @@ def efemerideGraphMultiplie(datasets_metrics_1, datasets_metrics_2, figs_path, v
     total_time = time() - start_time
     print(f"El código de graficos de {pred_type} se ejecutó en {total_time:.2f} segundos.")
 
-def efemerideGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, title, extension = 'pdf'):
+def efemerideGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, title, extension = 'pdf', color='hot_r', color_change = None):
            
     numLevels = 10
-    continuousCMAP = plt.get_cmap('hot_r')
+    continuousCMAP = plt.get_cmap(color)
     discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
     discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
+    if color != 'hot_r':
+        colors = list(discreteCMAPnoWhite.colors)
+        #colors[4] = (1.0, 1.0, 1.0, 1.0)  # Blanco (RGBA)
+        if color_change == None:
+            colors[4] = (1, 239/255, 239/255, 1.0) # Light red
+        else:
+            colors[color_change[0]] = color_change[1]
+        discreteCMAPnoWhite = ListedColormap(colors)
+    
 
     start_time = time()
     nRows, nCols = 2, 3
@@ -1421,7 +1430,7 @@ def efemerideGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, 
         ax = axes[j, i]
 
         ax.coastlines(resolution='10m')
-        ax.set_title(f'{predictand_name.capitalize()}', fontsize=16)
+        ax.set_title(f'{predictand_name.capitalize()}', fontsize=18)
         dataToPlot = predictand_data['tasmean']
         im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
                             dataToPlot,
@@ -1433,6 +1442,7 @@ def efemerideGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, 
         if counter == 0:
             cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])#fig.add_axes([0.91, 0.51, 0.04, 0.425])
             cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')#, extend='both', extendfrac='auto', )
+            cbar.ax.tick_params(labelsize=18)
 
     #fig.suptitle(title, fontsize=20)
     #fig.text(0.5, 0.94, 'Título para los 6 gráficos superiores', ha='center', fontsize=18)

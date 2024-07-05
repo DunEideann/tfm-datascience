@@ -18,8 +18,6 @@ MODEL_NAME = sys.argv[1]
 GCM_NAME = sys.argv[2]
 PERIOD = int(sys.argv[3])
 SCENARIO = int(sys.argv[4])
-#MODEL_NAME = 'ERA5-Land0.25deg'
-#GCM_NAME = 'EC-Earth3-Veg'
 
 # Listado de escenarios a predecir
 scenarios = ['ssp126', 'ssp245', 'ssp370', 'ssp585']
@@ -63,7 +61,6 @@ era5_predictor = era5_data.sel(time=slice(*(hist_reference[0], hist_reference[1]
 era5_train = era5_data.sel(time=slice(*yearsTrain)).load()
 
 # future = hist_baseline
-# scenario = 'ssp126'
 SCENARIO = scenarios[SCENARIO]
 PERIOD = periods[PERIOD]
 
@@ -72,7 +69,6 @@ predictor = utils.loadGcm(GCM_NAME, SCENARIO, (hist_reference[0], future_3[1]), 
 hist_predictor = predictor.sel(time=slice(*(hist_reference[0], hist_reference[1]))).load()
 future_predictor = predictor.sel(time=slice(*(PERIOD[0], PERIOD[1]))).load()
 
-#start_time = time.time()
 hist_metric = utils.getMontlyMetrics(hist_predictor)
 future_metric = utils.getMontlyMetrics(future_predictor)
 era5_metric = utils.getMontlyMetrics(era5_predictor)
@@ -112,7 +108,6 @@ model.load_state_dict(checkpoint)
 # Compute predictions on the test set
 # Transformacion de coordenada time de yUnflatten
 yUnflatten = yUnflatten.reindex(time=target_predictor.time, fill_value=np.nan)
-#yUnflatten = yUnflatten.resample(time=target_predictor.time)
 
 print("yUnflatten")
 print(yUnflatten) # Transformar tiempos a los mismos de GCM

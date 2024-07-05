@@ -25,8 +25,6 @@ futures = [hist_baseline, future_1, future_2, future_3]
 
 
 predictands = ['ERA5-Land0.25deg', 'E-OBS','AEMET_0.25deg', 'Iberia01_v1.0', 'pti-grid', 'CHELSA']
-# ERA y EOBS Listos, los otros 4 en pendiente
-#hist_baseline, future_1, future_2,
 for future in futures:
     # Cargamos Predicciones a escenarios
     print(f"Current period: {future}")
@@ -71,7 +69,6 @@ for future in futures:
                 data_to_plot[scenario]['pred'][season_name][predictand_name] = y_pred_metrics
                 data_to_plot[scenario]['hist'][season_name][predictand_name] = y_hist_metrics
                 data_to_plot[scenario]['diff'][season_name][predictand_name] = {key: y_pred_metrics[key]-y_hist_metrics if key != 'std' else y_pred_metrics[key]/y_hist_metrics[key] for key in metrics}
-                #names.append(predictand_name)
 
         print(f"{season_name} metricas cargadas!")
 

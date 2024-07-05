@@ -46,10 +46,6 @@ for predictand_name in predictands:
         data_to_plot['test'][season_name][predictand_name] = y_test_metrics
         data_to_plot['whole'][season_name][predictand_name] = y_metrics
 
-# cmap = plt.cm.bwr  # define the colormap
-# cmaplist = [cmap(i) for i in range(cmap.N)]
-# cmap = LinearSegmentedColormap.from_list(
-#     'Custom cmap', cmaplist, cmap.N)
 
 start_time = time.time()
 utils.multiMapPerSeason(data_to_plot, metrics, plot_metrics, f'{FIGS_PATH}')

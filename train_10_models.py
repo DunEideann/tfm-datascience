@@ -62,7 +62,6 @@ print("Predictores terminados!")
 file_name = utils.getFileName(DATA_PATH_PREDICTANDS_SAVE, PREDICTAND_NAME, keyword = 'tasmean')
 
 
-#/oceano/gmeteo/users/reyess/tfm/official-code
 predictand_path = f'{DATA_PATH_PREDICTANDS_SAVE}{PREDICTAND_NAME}/{file_name}'
 predictand = xr.open_dataset(predictand_path,
                              chunks=-1) # Near surface air temperature (daily mean)
@@ -133,9 +132,6 @@ if np.isnan(yTrainFlat_array).sum() > 0:
     yTestUnflatten = secondMask.unFlatten(grid=yTestFlat2, var='tasmean')
     maskToUse = secondMask
     print(f"Valores NAN en yTrain: {np.isnan(yTrainFlat_array).sum()}- Radio de nueva mascara: {secondMask.refArray.shape}/{baseMask.refArray.shape}")
-# yTrainFlat['tasmean'].values = yTrainFlat_array
-#yTrainUnflatten = baseMask.unFlatten(grid=yTrainFlat, var='tasmean')
-#plt.figure(); yTestUnflatten['tasmean'].mean('time').plot(); plt.savefig('./yTestPost.pdf')
 
 
 # Comenzamos entrenamiento del modelo

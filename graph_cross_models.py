@@ -21,8 +21,7 @@ plot_metrics = ['mean_train', 'real_train', 'diff_train', 'mean_test', 'real_tes
 yearsTrain = ('1980-01-01', '2003-12-31')
 yearsTest = ('2004-01-01', '2015-12-31')
 
-#aemet_pred = xr.open_dataset(f'{PREDS_PATH}predTest_AEMET_0.25deg.nc')
-# TODO Pasar a archivo unico cosas repetidas
+
 # PREDICTORS
 predictors = utils.getPredictors(DATA_PREDICTORS_TRANSFORMED)
 
@@ -104,11 +103,8 @@ for graph_type, seasons_value in data_to_plot.items():
                 v_max = 3
         bounds = np.linspace(v_min, v_max, 21)
         norm = BoundaryNorm(bounds, cmap.N)
-        #intervalos = np.arange(v_min, v_max+0.1, 10)
         nRows, nCols = 6, 4
-        #fig = plt.figure(figsize=(20, 18))#, sharex = True, sharey = True)
         fig, axes = plt.subplots(nRows, nCols, figsize=(20, 18), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
-        #gs = fig.add_gridspec(4, 6)
         i = 0
         for season_name, predictand_value in seasons_value.items():
             j = 0
@@ -136,16 +132,13 @@ for graph_type, seasons_value in data_to_plot.items():
                                     transform=ccrs.PlateCarree(),
                                     cmap=cmap,
                                     norm=BoundaryNorm(bounds, cmap.N))
-                #ax.grid(True)
                 j += 1
             i += 1
 
         cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])
         cbar = fig.colorbar(im, cax)#, cmap=cmap_discreto, norm=norm, boundaries=intervalos)#, pad = 0.02, shrink=0.8)
-        #|fig.supylabel("HAIWHROIWR")
 
         plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
-        #plt.setp(axes[0, 0].get_ylabel, visible=True)
         plt.savefig(f'{FIGS_PATH_OBS}/intercomparisson_totalMean_{metric}_{graph_type}.pdf')
         plt.close()
 
@@ -181,7 +174,6 @@ for predictand_name in predictands:
 
 for graph_type, seasons_value in pred_to_plot.items():
     for metric in metrics: 
-        #Cambiar a un diccionario TODO
         if 'diff' not in graph_type:
             if metric == 'over30':
                 v_min = 0
@@ -207,11 +199,8 @@ for graph_type, seasons_value in pred_to_plot.items():
                 v_max = 3
         bounds = np.linspace(v_min, v_max, 21)
         norm = BoundaryNorm(bounds, cmap.N)
-        #intervalos = np.arange(v_min, v_max+0.1, 10)
         nRows, nCols = 6, 4
-        #fig = plt.figure(figsize=(20, 18))#, sharex = True, sharey = True)
         fig, axes = plt.subplots(nRows, nCols, figsize=(20, 18), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
-        #gs = fig.add_gridspec(4, 6)
         i = 0
         for season_name, predictand_value in seasons_value.items():
             j = 0
@@ -239,16 +228,13 @@ for graph_type, seasons_value in pred_to_plot.items():
                                     transform=ccrs.PlateCarree(),
                                     cmap=cmap,
                                     norm=BoundaryNorm(bounds, cmap.N))
-                #ax.grid(True)
                 j += 1
             i += 1
 
         cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])
         cbar = fig.colorbar(im, cax)#, cmap=cmap_discreto, norm=norm, boundaries=intervalos)#, pad = 0.02, shrink=0.8)
-        #|fig.supylabel("HAIWHROIWR")
 
         plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
-        #plt.setp(axes[0, 0].get_ylabel, visible=True)
         plt.savefig(f'{FIGS_PATH}/intercomparisson_totalMean_{metric}_{graph_type}.pdf')
         plt.close()
 
@@ -260,8 +246,6 @@ print(f"Graficos de comparacion cruzada (Predicciones) se ejecutaron en {total_t
 # OVERALL CROSS MODELS
 
 chelsa_whole = predictand_list['CHELSA']
-
-
 
 chelsa_whole_flat = chelsa_whole.tasmean.values.ravel()
 chelsa_whole_flat = chelsa_whole_flat[~np.isnan(chelsa_whole_flat)]

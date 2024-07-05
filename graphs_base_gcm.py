@@ -6,7 +6,6 @@ import numpy as np
 
 DATA_PATH_PREDICTORS = '/lustre/gmeteo/PTICLIMA/DATA/PROJECTIONS/CMIP6_PNACC/CMIP6_models/'
 FIGS_PATH = '/lustre/gmeteo/WORK/reyess/figs/GCM_Base/'
-#GCM_NAME = sys.argv[2]
 GCM_NAME = 'EC-Earth3-Veg'
 LAT_SLICE = slice(33.5, 48.6)
 LON_SLICE = slice(-10.5, 4.6)
@@ -31,7 +30,6 @@ hist_tas = hist_tas.drop_dims('bnds')
 hist_tas = hist_tas.sel(lon=LON_SLICE, lat=LAT_SLICE)
 hist_tas = hist_tas.reindex(lat=list(reversed(hist_tas.lat)))
 hist_tas = hist_tas.assign_coords({'time': hist_tas.indexes['time'].normalize()})
-#hist_tas = hist_tas.reshape((hist_tas.shape[1], hist_tas.shape[2]))
 
 hist_metrics = utils.getMetricsTemp(hist_tas, 'tas')
 
@@ -41,17 +39,14 @@ for scenario in scenarios:
     print("GCM")
     print(gcm_futu)
     for future in periods:
-        #predictor = utils.loadGcm(GCM_NAME, scenario, (hist_reference[0], future_3[1]), DATA_PATH_PREDICTORS)
-        #gcm_futu = xr.open_dataset(f'{DATA_PATH_PREDICTORS}tas_EC-Earth3-Veg_{scenario}_r1i1p1f1_20150101-21001231.nc')
         future_tas = gcm_futu.sel(time=slice(*(future[0], future[1])))
-        future_tas = future_tas.drop_vars('height')#.sel(dim=~(future_tas.dims.get('height')))
+        future_tas = future_tas.drop_vars('height')
         future_tas = utils.checkCorrectData(future_tas)
         future_tas = utils.checkUnitsTempt(future_tas, 'tas')
         future_tas = future_tas.drop_dims('bnds')
         future_tas = future_tas.sel(lon=LON_SLICE, lat=LAT_SLICE)
         future_tas = future_tas.reindex(lat=list(reversed(future_tas.lat)))
         future_tas = future_tas.assign_coords({'time': future_tas.indexes['time'].normalize()})
-        #future_tas = future_tas.reshape((future_tas.shape[1], future_tas.shape[2]))
         future_metrics = utils.getMetricsTemp(future_tas, 'tas')
         print("FUTURE")
         print(future_tas)
@@ -66,10 +61,8 @@ for scenario in scenarios:
     print("GCM")
     print(gcm_futu)
     for future in periods:
-        #predictor = utils.loadGcm(GCM_NAME, scenario, (hist_reference[0], future_3[1]), DATA_PATH_PREDICTORS)
-        #gcm_futu = xr.open_dataset(f'{DATA_PATH_PREDICTORS}tas_EC-Earth3-Veg_{scenario}_r1i1p1f1_20150101-21001231.nc')
         future_tas = gcm_futu.sel(time=slice(*(future[0], future[1])))
-        future_tas = future_tas.drop_vars('height')#.sel(dim=~(future_tas.dims.get('height')))
+        future_tas = future_tas.drop_vars('height')
         future_tas = utils.checkCorrectData(future_tas)
         future_tas = utils.checkUnitsTempt(future_tas, 'tas')
         future_tas = future_tas.drop_dims('bnds')

@@ -85,17 +85,6 @@ y, x = utils.alignDatasets(grid1=predictand, grid2=predictors, coord='time')
 yearsTrain = ('1980-01-01', '2003-12-31')
 yearsTest = ('2004-01-01', '2015-12-31')
 
-# Elimina valore s0 y dejar como NAN ademas de aplicar la mascara:
-# baseMask = utils.obtainMask(
-#     path=f'{DATA_PATH_PREDICTANDS_SAVE}AEMET_0.25deg/AEMET_0.25deg_tasmean_1951-2022.nc',
-#     var='tasmean',
-#     to_slice=(yearsTrain[0], yearsTest[1]))
-# yFlat = baseMask.flatten(grid=y.load(), var='tasmean')
-# yFlat_array = utils.toArray(yFlat)
-# yTestFlat['tasmean'].values = yTestFlat_array
-# yTestUnflatten = baseMask.unFlatten(grid=yTestFlat, var='tasmean')
-# Eliminar valores 0 y dejarlo como NAN ALternativa 2
-
 
 # Filtrar años en base a predictandos y ver sus NANs y los rangos de años
 xTrain = x.sel(time=slice(*yearsTrain)).load()
@@ -145,9 +134,6 @@ if np.isnan(yTrainFlat_array).sum() > 0:
     yTestUnflatten = secondMask.unFlatten(grid=yTestFlat2, var='tasmean')
     maskToUse = secondMask
     print(f"Valores NAN en yTrain: {np.isnan(yTrainFlat_array).sum()}- Radio de nueva mascara: {secondMask.refArray.shape}/{baseMask.refArray.shape}")
-# yTrainFlat['tasmean'].values = yTrainFlat_array
-#yTrainUnflatten = baseMask.unFlatten(grid=yTrainFlat, var='tasmean')
-#plt.figure(); yTestUnflatten['tasmean'].mean('time').plot(); plt.savefig('./yTestPost.pdf')
 
 
 # Comenzamos entrenamiento del modelo
