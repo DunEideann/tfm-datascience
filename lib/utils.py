@@ -8,7 +8,18 @@ import torch
 from scipy import signal, stats
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
+from matplotlib.colors import ListedColormap, BoundaryNorm, LinearSegmentedColormap
 
+graph_dict = {
+        'mean': 'Mean',
+        '99quantile': 'Quantile 99',
+        '1quantile': 'Quantile 1',
+        'std': 'Standar Deviation',
+        'trend': 'Trend',
+        'over30': 'Days Over 30',
+        'over40': 'Days Over 40',
+        'mean_max_mean': 'Mean Max Mean'
+        }
 
 def checkUnitsTempt(data, var):
     """Check units of tempeture and transform them if necessary.
@@ -28,7 +39,7 @@ def checkUnitsTempt(data, var):
     return data
     
 
-def getMetricsTemp(data):
+def getMetricsTemp(data, var = None, short = False):#, mask=None):
     """_summary_
 
     Args:
@@ -37,12 +48,40 @@ def getMetricsTemp(data):
     Returns:
         _type_: _description_
     """
+    if var == None:
+        var = 'tasmean'
     val_mean = data.mean(dim = 'time')
     val_mean_annual = data.resample(time = 'YE').mean()
     val_st = data.std(dim = 'time')
     val_99 = data.quantile(0.99, dim = 'time')
+    val_1 = data.quantile(0.01, dim='time')
+    over30 = data[var].where(data[var] >= 30).count(dim='time').to_dataset(name=var)
+    over30 = over30.where(over30 != 0, np.nan)
+    over40 = data[var].where(data[var] >= 40).count(dim='time').to_dataset(name=var)
+    over40 = over40.where(over40 != 0, np.nan)
+    mean_max_mean = data.resample(time = 'YE').max(dim='time').mean(dim='time')
 
-    return {'mean': val_mean, '99quantile': val_99, 'std': val_st, 'trend': val_mean_annual}
+    if short:
+        response = {
+        'mean': val_mean,
+        '99quantile': val_99,
+        '1quantile': val_1,
+        'std': val_st,
+        'over30': over30
+        }
+    else:
+        response = {
+        'mean': val_mean,
+        '99quantile': val_99,
+        '1quantile': val_1,
+        'std': val_st,
+        'trend': val_mean_annual,
+        'over30': over30,
+        'over40': over40,
+        'mean_max_mean': mean_max_mean
+        }
+
+    return response
 
 def __graphTrend(metrics, season_name, folder_path, pred_name, extra = ''):
     """_summary_
@@ -67,8 +106,6 @@ def __graphTrend(metrics, season_name, folder_path, pred_name, extra = ''):
 
 
     # Loop through latitudes and longitudes, performing calculations and filling DataArrays
-    #y_pred_metrics
-    # TODO : Evitar 2 ciclos for usando zip o map o product
     for i, lat in enumerate(lats):
         for j, lon in enumerate(lons):
             slope_val, intercept_val, r_val, p_val, std_err_val = stats.linregress(
@@ -183,8 +220,8 @@ def getGraphsTempGCM(pred_metrics, scenario, folder_path, pred_name, model_name)
         model_name (_type_): _description_
     """
     # Check if target folder to save figs exists, if not creates it
-    if not os.path.exists(f'{folder_path}{pred_name}'):
-        os.makedirs(f'{folder_path}{pred_name}')
+    if not os.path.exists(f'{folder_path}{pred_name}_pred_{model_name}'):
+        os.makedirs(f'{folder_path}{pred_name}_pred_{model_name}')
 
     __graphTrend(pred_metrics, scenario, folder_path, f'{pred_name}_pred_{model_name}')
 
@@ -213,7 +250,7 @@ def getGraphsTempGCM(pred_metrics, scenario, folder_path, pred_name, model_name)
         plt.clim(vmin, vmax)# AGREGADO PARA LEYENDA
 
         plt.tight_layout()
-        plt.savefig(f'{folder_path}{pred_name}/prediction_{scenario}_{key}.pdf')
+        plt.savefig(f'{folder_path}{pred_name}_pred_{model_name}/prediction_{scenario}_{key}.pdf')
         plt.close()
 
 def checkIndex(dataset):
@@ -255,7 +292,7 @@ def getFileName(data_path, target_name, keyword):
             break
     return file_name
 
-def loadGcm(gcm, scenario, gcm_path):
+def loadGcm(gcm, scenario, to_slice, gcm_path, optVar=None):
     """_summary_
 
     Args:
@@ -272,16 +309,18 @@ def loadGcm(gcm, scenario, gcm_path):
     else:
         gcm_run = 'r1i1p1f1'
 
-    if scenario == 'historical':
-        years = '19500101-20141231'
-    else:
-        years = '20150101-21001231'
+    years_1 = '19500101-20141231'
+    years_2 = '20150101-21001231'
 
+    
+    # if optVar != None:
+    #     vars_mapping = optVar
+    # else:
     vars_mapping = {'ta': 't',
-                    'hus': 'q',
-                    'va': 'v',
-                    'ua': 'u',
-                    'psl': 'msl'}
+                'hus': 'q',
+                'va': 'v',
+                'ua': 'u',
+                'psl': 'msl'}
 
     heights_mapping = {500.0: '500',
                     700.0: '700',
@@ -289,10 +328,12 @@ def loadGcm(gcm, scenario, gcm_path):
 
     varsData = []
     for var in vars_mapping.keys():
-        data = xr.open_dataset(f'{gcm_path}/{var}_{gcm}_{scenario}_{gcm_run}_{years}.nc')
+        data_1 = xr.open_dataset(f'{gcm_path}/{var}_{gcm}_historical_{gcm_run}_{years_1}.nc', mode='r')
+        data_2 = xr.open_dataset(f'{gcm_path}/{var}_{gcm}_{scenario}_{gcm_run}_{years_2}.nc', mode='r')
+        data = xr.merge([data_1, data_2]).sel(time=slice(*to_slice))
         data = data.drop_dims('bnds')
 
-        if var not in ('psl'):
+        if var not in ('psl') and var != 'tas':
             data['plev'] = data['plev'] / 100
             for height in heights_mapping.keys():
                 dataAux = data.sel(plev=height)
@@ -307,6 +348,7 @@ def loadGcm(gcm, scenario, gcm_path):
 
     predictor_gcm = xr.merge(varsData)
     predictor_gcm = predictor_gcm.assign_coords({'time': predictor_gcm.indexes['time'].normalize()})
+
 
     return predictor_gcm
 
@@ -360,7 +402,7 @@ def loadSurfaceGcm(gcm, var, scenario, gcm_path):
     else:
         years = '20150101-21001231'
 
-    data = xr.open_dataset(f'{gcm_path}/{var}_{gcm}_{scenario}_{gcm_run}_{years}.nc')
+    data = xr.open_dataset(f'{gcm_path}/{var}_{gcm}_{scenario}_{gcm_run}_{years}.nc', mode='r')
     data = data.drop_dims('bnds')
 
     data = data.reindex(lat=list(reversed(data.lat)))
@@ -813,7 +855,7 @@ def obtainMask(var, grid = None, path = None, to_slice=None):
         utils.flattenSpatialGrid: An object of the class 'flattenSpatialGrid'
     """
     if path != None:
-        grid = xr.open_dataset(path)
+        grid = xr.open_dataset(path, mode='r')
     grid = checkCorrectData(grid) # Transform coordinates and dimensions if necessary
     grid = checkIndex(grid)
     grid=grid.assign_coords({'time': grid.indexes['time'].normalize()})
@@ -823,6 +865,25 @@ def obtainMask(var, grid = None, path = None, to_slice=None):
         baseMask = flattenSpatialGrid(grid=grid.load(), var=var)
 
     return baseMask
+
+def filterByMask(mask, data, var='tasmean'):
+    """TODO
+
+    Args:
+        mask (_type_): _description_
+        data (_type_): _description_
+        var (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    data_flat = mask.flatten(grid=data, var=var)
+    data_flat_array = toArray(data_flat)
+    data_flat[var].values = data_flat_array
+    data_unflatten = mask.unFlatten(grid=data_flat, var=var)
+
+    return data_unflatten
+
 def __predict(model, device, **kwargs):
 
     '''
@@ -871,3 +932,500 @@ def predDataset(X, model, device, flattener, var, ref = None):
 
     return yPred
 
+def getPredictand(data_path, name, var, complete_path = None):
+    if complete_path == None:
+        file_name = getFileName(data_path, name, keyword = var)
+        predictand_path = f'{data_path}{name}/{file_name}'
+    else:
+        predictand_path = complete_path
+    predictand = xr.open_dataset(predictand_path,
+                                chunks=-1, mode='r') # Near surface air temperature (daily mean)
+    predictand = checkCorrectData(predictand) # Transform coordinates and dimensions if necessary
+
+    predictand = checkIndex(predictand)
+    predictand = checkUnitsTempt(predictand, var)
+    predictand = predictand.assign_coords({'time': predictand.indexes['time'].normalize()})
+
+    return predictand
+
+def getPredictors(data_path):
+    predictors_vars = ['t500', 't700', 't850', # Air temperature at 500, 700, 850 hPa
+    'q500', 'q700', 'q850', # Specific humidity at 500, 700, 850 hPa
+    'v500', 'v700', 'v850', # Meridional wind component at 500, 700, 850 hPa
+    'u500', 'u700', 'u850', # Zonal wind component at 500, 700, 850 hPa
+    'msl']
+    data_predictors = []
+    for var in predictors_vars:
+        data_predictors.append(xr.open_dataset(f'{data_path}/{var}_ERA5.nc', mode = 'r'))
+    predictors = xr.merge(data_predictors)
+    predictors = predictors.reindex(lat=list(reversed(predictors.lat))) 
+
+    return predictors
+
+def getTrainTest(predictors, predictand, years):
+    y, x = alignDatasets(grid1=predictand, grid2=predictors, coord='time')
+
+    # Split into train and test set
+    yearsTrain = years[0]
+    yearsTest = years[1]
+
+    xTrain = predictors.sel(time=slice(*yearsTrain)).load()
+    xTest = predictors.sel(time=slice(*yearsTest)).load()
+
+    yTrain = predictand.sel(time=slice(*yearsTrain)).load()
+    yTest = predictand.sel(time=slice(*yearsTest)).load()
+
+    return xTrain, xTest, yTrain, yTest
+
+def maskData(var, objective, secondGrid=None, grid = None, path = None, to_slice=None):
+    """_summary_
+
+    Args:
+        var (_type_): _description_
+        objective (_type_): _description_
+        secondGrid (_type_, optional): _description_. Defaults to None.
+        grid (_type_, optional): _description_. Defaults to None.
+        path (_type_, optional): _description_. Defaults to None.
+        to_slice (_type_, optional): _description_. Defaults to None.
+
+    Returns:
+        _type_: _description_
+    """
+    if path != None:
+        grid = xr.open_dataset(path, mode='r')
+    grid = checkCorrectData(grid) # Transform coordinates and dimensions if necessary
+    grid = checkIndex(grid)
+    grid=grid.assign_coords({'time': grid.indexes['time'].normalize()})
+    if to_slice != None:
+        baseMask = flattenSpatialGrid(grid=grid.sel(time=slice(*to_slice)).load(), var=var)
+    else:
+        baseMask = flattenSpatialGrid(grid=grid.load(), var=var)
+
+    objectiveFlat = baseMask.flatten(grid=objective, var=var)
+    objectiveFlat_array = toArray(objectiveFlat)
+    objectiveFlat[var].values = objectiveFlat_array
+    objectiveUnflatten = baseMask.unFlatten(grid=objectiveFlat, var=var)
+    
+    if np.isnan(objectiveUnflatten).sum() > 0 and secondGrid != None:
+        secondMask = obtainMask(grid = secondGrid, var = var)
+        secondFlat = secondMask.flatten(grid=objectiveUnflatten, var=var)
+        secondFlat_array = toArray(secondFlat)
+        secondFlat[var].values = secondFlat_array
+        objectiveUnflatten = secondMask.unFlatten(grid=secondFlat, var=var)
+
+    return objectiveUnflatten
+
+
+def biasYear_x(yTest, yPred, var = None, season_months=None):
+    
+    if season_months != None:
+        yTest = yTest.isel(time=(yTest.time.dt.season == season_months))
+        yPred = yPred.isel(time=(yPred.time.dt.season == season_months))
+    
+    yTest = yTest.groupby('time.year').max('time')
+    yPred = yPred.groupby('time.year').max('time')    
+    metric = (yPred.mean('year') - yTest.mean('year'))   
+
+    return metric
+
+def getMontlyMetrics(data, to_slice = None):
+
+    if to_slice != None:
+        data = data.sel(time=slice(*to_slice))
+
+    data = data.groupby('time.month')
+    mean = data.mean()
+    std = data.std()
+
+    return {'mean': mean, 'std': std}
+
+def __operationStandarBias(data, hist_mean, hist_std, future_mean, observational_mean, observational_std, mes):
+
+    delta = future_mean - hist_mean
+    result = (data - delta - hist_mean)*(observational_std/hist_std) + observational_mean + delta
+
+    return result
+
+def standarBiasCorrection(dataset, hist_metric, future_metric, observational_metric):
+
+    future_mean = future_metric['mean']
+    hist_mean = hist_metric['mean']
+    observational_mean = observational_metric['mean']
+    hist_std = hist_metric['std']
+    observational_std = observational_metric['std']
+
+    dataset_corrected = dataset.copy(deep=True)
+    for mes in range(1, 13):        
+        for var in dataset.keys():
+            dataset_corrected[var][dataset_corrected.time.dt.month == mes] = __operationStandarBias(
+                dataset.sel(time=dataset.time.dt.month == mes),
+                hist_mean.sel(month=mes),
+                hist_std.sel(month=mes),
+                future_mean.sel(month=mes),
+                observational_mean.sel(month=mes),
+                observational_std.sel(month=mes),
+                mes)[var]
+
+    return dataset_corrected
+
+def scalingDeltaCorrection(grid, refHist, refObs):    
+    '''
+    Perform a scaling delta mapping following https://gmd.copernicus.org/preprints/gmd-2022-57/    @grid: Dataset to correct (GCM predictors)
+    @refHist: Historical predictors (GCM predictors on historial period)
+    @refObs: Observational predictors
+    '''    
+    gridAux = grid.copy(deep=True)
+    refHistAux = refHist.copy(deep=True)
+    refObsAux = refObs.copy(deep=True)    
+    for month in range(1, 12+1):        # Compute monthly means and standard deviations
+        refHist_monthMean = refHistAux.sel(time=refHistAux.time.dt.month.isin(month)).mean('time')
+        refObs_monthMean = refObsAux.sel(time=refObsAux.time.dt.month.isin(month)).mean('time')
+        grid_monthMean = gridAux.sel(time=gridAux.time.dt.month.isin(month)).mean('time')        
+        refHist_monthSD = refHistAux.sel(time=refHistAux.time.dt.month.isin(month)).std('time')
+        refObs_monthSD = refObsAux.sel(time=refObsAux.time.dt.month.isin(month)).std('time')        # Select data from a specific month
+        grid_month = gridAux.sel(time=gridAux.time.dt.month.isin(month))        # Perform the correction
+        seasonalDelta = grid_monthMean - refHist_monthMean
+        grid_month = ((((grid_month - seasonalDelta -  refHist_monthMean)/refHist_monthSD) * \
+                        refObs_monthSD) + refObs_monthMean + seasonalDelta)        # Iterate over vars and assign the value to the grid dataset
+        for var in grid.keys():
+            gridAux[var][gridAux.time.dt.month.isin(month)] = grid_month[var]    
+    
+    return gridAux
+
+
+def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path = '', values_extended = False,
+                values = {'diff': {'over30': (-50, 50), 'over40': (-10, 10), 'std': (0, 2), 'else': (-3, 3)},
+                          'noDiff': {'over30': (0, 500), 'over40': (0, 30), 'std': (0, 10), 'else': (-5, 35)}
+                }):
+
+    numLevels = 10 if values_extended else 16
+    continuousCMAP = plt.get_cmap('hot_r')
+    discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
+
+    start_time = time()
+    for graph_type, seasons_value in data_to_plot.items():
+        for metric in metrics: 
+            #Cambiar a un diccionario TODO
+            if graph_type != 'diff':
+                if metric == 'over30':
+                    v_min = values['noDiff'][metric][0]
+                    v_max = values['noDiff'][metric][1]
+                elif metric == 'over40':
+                    v_min = values['noDiff'][metric][0]
+                    v_max = values['noDiff'][metric][1]
+                elif metric == 'std':
+                    v_min = values['noDiff'][metric][0]
+                    v_max = values['noDiff'][metric][1]
+                else:
+                    v_min = values['noDiff']['else'][0]
+                    v_max = values['noDiff']['else'][1]
+            else:
+                if metric == 'std':
+                    v_min = values['diff'][metric][0]
+                    v_max = values['diff'][metric][1]
+                else:
+                    v_min = 0
+                    v_max = 10 if values_extended else 8
+            
+            nRows, nCols = len(seasons_value['winter']), 4
+            fig, axes = plt.subplots(nRows, nCols, figsize=(20, nRows*3), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+            i = 0
+            for season_name, predictand_value in seasons_value.items():
+                j = 0
+
+                for predictand_name, value in predictand_value.items():     
+
+                    ax = axes[j, i]
+                    if j == 0:
+                        ax.set_title(f'{season_name.capitalize()}', fontsize=14)
+                    if i == 0:
+                        ax.text(-0.07, 0.55, predictand_name, va='bottom', ha='center',
+                            rotation='vertical', rotation_mode='anchor',
+                            transform=ax.transAxes, fontsize=14)
+            
+                    ax.coastlines(resolution='10m')
+                    if graph_type != 'diff':
+                        dataToPlot = value[metric]['tasmean']
+                    elif metric != 'std':
+                        dataToPlot = (data_to_plot[plot_metrics[0]][season_name][predictand_name][metric] - data_to_plot[plot_metrics[1]][season_name][predictand_name][metric])['tasmean']
+                    else:
+                        dataToPlot = (data_to_plot[plot_metrics[0]][season_name][predictand_name][metric]/data_to_plot[plot_metrics[1]][season_name][predictand_name][metric])['tasmean']
+
+                    im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
+                                        dataToPlot,
+                                        transform=ccrs.PlateCarree(),
+                                        cmap=discreteCMAP,
+                                        vmin=v_min, vmax=v_max)
+
+                    j += 1
+                i += 1
+
+            cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])
+            cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')
+
+
+            plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
+            plt.savefig(f'{FIGS_PATH}/comparisson_{metric}_{graph_type}{extra_path}.pdf')
+            plt.close()
+
+    total_time = time() - start_time
+    print(f"El código de graficos de test se ejecutó en {total_time:.2f} segundos.")
+
+def graphsBaseGCM(objective, reference, save_path, color_extended=False):
+    diff = {}
+    del objective['trend']
+    for key in objective.keys():
+        if key == 'std':
+            diff[key] = objective[key] / reference[key]
+        else:
+            diff[key] = objective[key] - reference[key]
+
+    # Configurar el tamaño de la figura y crear subgráficos con GeoAxes
+    fig, axes = plt.subplots(nrows=6, ncols=3, figsize=(15, 30), subplot_kw={'projection': ccrs.PlateCarree()})
+
+    if color_extended:
+        list_colors = ['royalblue', 'cyan', 'mediumspringgreen', 'green', 'yellow', 'orange']
+    else:
+        list_colors = ['royalblue', 'cyan', 'yellow', 'orange']
+    cmap = (ListedColormap(list_colors)
+            .with_extremes(over='red', under='blue'))
+
+    # Generar y mostrar datos en cada subgráfico
+    for i, key in enumerate(objective.keys()):
+        if key == 'trend':
+            continue
+        for j in range(3):
+            if j == 0:
+                data = objective[key]['tas']
+            elif j == 1:
+                data = reference[key]['tas']
+            else:
+                data = diff[key]['tas']
+            
+            print(f"DATA SHAPE: {data.shape}, metric: {key}")
+            lon = data.coords['lon'].values
+            lat = data.coords['lat'].values
+            data = data.values.reshape(data.shape[0], data.shape[1])
+            if j == 0 and i == 0:
+                print(data)
+            # Obtener el subgráfico actual
+            masked_data = np.ma.masked_invalid(data)
+            v_min = np.nanmin(data) if not np.isnan(np.nanmin(data)) else 0
+            v_max = np.nanmax(data) if not np.isnan(np.nanmax(data)) else 5
+            if (v_max-v_min) == 0:
+                v_max = v_min +1
+            print(f"Min: {v_min}, MAX: {v_max}")
+            bounds = np.linspace(v_min, v_max, cmap.N + 1)
+            bounds = np.round(bounds, 2)
+            ax = axes[i, j]
+
+            # Mostrar la imagen en el subgráfico actual
+            im = ax.pcolormesh(lon, lat, data,
+                               transform=ccrs.PlateCarree(), cmap=cmap,
+                               norm=BoundaryNorm(bounds, cmap.N), shading='auto')
+
+            # Agregar una barra de color individual
+            cbar = plt.colorbar(im, ax=ax, orientation='horizontal', pad=0.05, extend='both', extendfrac='auto', spacing='uniform')
+
+            im.set_clim(vmin=v_min, vmax=v_max)
+
+            # Opcional: establecer título, etiquetas, etc.
+            dataset = ['Futuro', 'Historico', 'Diferencia']
+            ax.set_title(f'{key}-{dataset[j]}')
+            ax.coastlines()  # Añadir líneas de costa para contexto geográfico
+
+    # Ajustar el layout para que no haya solapamientos
+    plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.2, hspace=0.4)
+    plt.savefig(save_path)
+    plt.close()
+
+
+
+def getDataset(datasets, metric, var=None):
+    # Asignar valor por defecto a var si es None
+    if var is None:
+        var = 'tasmean'
+
+    # Calcular la media temporal para cada dataset
+    means = [dataset.mean(dim='time') for dataset in datasets.values()]
+
+    # Crear listas para almacenar los valores lat, lon y tasmean
+    lat_values = means[0].lat.values
+    lon_values = means[0].lon.values
+    tasmean_values = np.zeros((len(lat_values), len(lon_values)))
+
+    # Iterar sobre cada punto de la grilla
+    for i, lat in enumerate(lat_values):
+        for j, lon in enumerate(lon_values):
+            values = [datamean.sel(lat=lat, lon=lon)[var].values for datamean in means]
+            if metric == 'Min':
+                tasmean_values[i, j] = np.min(values)
+            elif metric == 'Max':
+                tasmean_values[i, j] = np.max(values)
+            else:
+                tasmean_values[i, j] = np.mean(values)
+
+    # Crear un nuevo DataArray con los valores calculados
+    tasmean_da = xr.DataArray(tasmean_values, coords=[lat_values, lon_values], dims=['lat', 'lon'])
+
+    # Crear un nuevo Dataset y añadir el DataArray
+    new_dataset = xr.Dataset({var: tasmean_da})
+
+    return new_dataset
+
+def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, period, extension = 'pdf', noWhite = False):
+           
+    numLevels = 10
+    continuousCMAP = plt.get_cmap('hot_r')
+    if noWhite == False:
+        discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
+    else:
+        discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
+
+    discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
+
+    start_time = time()
+    #for period, period_data in datasets_metrics.items():
+    nRows, nCols = 5, 6
+    fig, axes = plt.subplots(nRows, nCols, figsize=(25, nRows*3), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+    for i, (predictand_name, predictand_data) in enumerate(datasets_metrics.items()): 
+        #Cambiar a un diccionario TODO
+        for j, (metric, metric_data) in enumerate(predictand_data.items()):
+
+            ax = axes[j, i]
+            if j == 0:
+                ax.set_title(f'{predictand_name.capitalize()}', fontsize=16)
+            if i == 0:
+                ax.text(-0.07, 0.55, graph_dict[metric], va='bottom', ha='center',
+                    rotation='vertical', rotation_mode='anchor',
+                    transform=ax.transAxes, fontsize=16)
+    
+            ax.coastlines(resolution='10m')
+            
+
+            dataToPlot = metric_data['tasmean']
+            im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
+                                dataToPlot,
+                                transform=ccrs.PlateCarree(),
+                                cmap=discreteCMAP if metric != 'over30' else discreteCMAPnoWhite,
+                                vmin=vmin[j], vmax=vmax[j])
+
+
+            if i == 0:
+                cax = fig.add_axes([0.125, 0.056 + (4*0.18) - (j * 0.18), 0.776, 0.02]) 
+                cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform', orientation='horizontal')
+                cbar.set_ticks(np.linspace(vmin[j], vmax[j], 6))
+                cbar.ax.tick_params(labelsize=16)
+
+    plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
+    plt.savefig(f'{figs_path}/fig{fig_num}_metrics_{pred_type}_{period}.{extension}', bbox_inches='tight')
+    plt.close()
+
+    total_time = time() - start_time
+    print(f"El código de graficos de {pred_type} se ejecutó en {total_time:.2f} segundos.")
+
+
+def efemerideGraphMultiplie(datasets_metrics_1, datasets_metrics_2, figs_path, vmin, vmax, pred_type, fig_num, extension = 'pdf'):
+           
+    numLevels = 10
+    continuousCMAP = plt.get_cmap('hot_r')
+    discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
+
+    start_time = time()
+    nRows, nCols = 2, 3
+    fig, axes = plt.subplots(nRows, nCols, figsize=(15, nRows*3), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+    for counter, (predictand_name, predictand_data) in enumerate(datasets_metrics_1.items()): 
+        j = counter//nCols
+        i = counter%nCols
+        ax = axes[j, i]
+
+        ax.coastlines(resolution='10m')
+        ax.set_title(f'{predictand_name.capitalize()}', fontsize=16)
+        dataToPlot = predictand_data['tasmean']
+        im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
+                            dataToPlot,
+                            transform=ccrs.PlateCarree(),
+                            cmap=discreteCMAP,
+                            vmin=vmin[0], vmax=vmax[0])
+
+
+        if counter == 0:
+            cax = fig.add_axes([0.91, 0.51, 0.04, 0.425])
+            cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')
+
+    for counter, (predictand_name, predictand_data) in enumerate(datasets_metrics_2.items()): 
+        counter += 6
+        #Cambiar a un diccionario TODO
+        j = counter//nCols
+        i = counter%nCols
+        print(f"counter:{counter}, i:{i}, j:{j}")
+        ax = axes[j, i]
+
+        ax.coastlines(resolution='10m')
+        ax.set_title(f'{predictand_name.capitalize()}', fontsize=16)
+        dataToPlot = predictand_data['tasmean']
+        im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
+                            dataToPlot,
+                            transform=ccrs.PlateCarree(),
+                            cmap=discreteCMAP,
+                            vmin=vmin[1], vmax=vmax[1])
+
+        if counter == 6:
+            cax = fig.add_axes([0.91, 0.06, 0.04, 0.425])
+            cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')
+
+    fig.text(0.5, 0.94, 'Título para los 6 gráficos superiores', ha='center', fontsize=18)
+    fig.text(0.5, 0.49, 'Título para los 6 gráficos inferiores', ha='center', fontsize=18)
+
+    plt.subplots_adjust(top=0.93, bottom=0.07, wspace=0.002, hspace=0.2)
+    plt.savefig(f'{figs_path}/fig{fig_num}metrics_{pred_type}.{extension}')
+    plt.close()
+
+    total_time = time() - start_time
+    print(f"El código de graficos de {pred_type} se ejecutó en {total_time:.2f} segundos.")
+
+def efemerideGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, title, extension = 'pdf', color='hot_r', color_change = None):
+           
+    numLevels = 10
+    continuousCMAP = plt.get_cmap(color)
+    discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
+    discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
+    if color != 'hot_r':
+        colors = list(discreteCMAPnoWhite.colors)
+        if color_change == None:
+            colors[4] = (1, 239/255, 239/255, 1.0) # Light red
+        else:
+            colors[color_change[0]] = color_change[1]
+        discreteCMAPnoWhite = ListedColormap(colors)
+    
+
+    start_time = time()
+    nRows, nCols = 2, 3
+    fig, axes = plt.subplots(nRows, nCols, figsize=(15, nRows*3), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+    for counter, (predictand_name, predictand_data) in enumerate(datasets_metrics.items()): 
+        #Cambiar a un diccionario TODO
+        j = counter//nCols
+        i = counter%nCols
+        ax = axes[j, i]
+
+        ax.coastlines(resolution='10m')
+        ax.set_title(f'{predictand_name.capitalize()}', fontsize=18)
+        dataToPlot = predictand_data['tasmean']
+        im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
+                            dataToPlot,
+                            transform=ccrs.PlateCarree(),
+                            cmap=discreteCMAPnoWhite,
+                            vmin=vmin, vmax=vmax)
+
+        if counter == 0:
+            cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])
+            cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')
+            cbar.ax.tick_params(labelsize=18)
+
+
+    plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.2) #95 05
+    plt.savefig(f'{figs_path}/fig{fig_num}metrics_{pred_type}.{extension}', bbox_inches='tight')
+    plt.close()
+
+    total_time = time() - start_time
+    print(f"El código de graficos de {pred_type} se ejecutó en {total_time:.2f} segundos.")

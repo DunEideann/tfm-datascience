@@ -24,8 +24,7 @@ VARIABLES_TO_DROP = ['lon_bnds', 'lat_bnds', 'crs']
 LAT_SLICE = slice(33.5, 48.6)
 LON_SLICE = slice(-10.5, 4.6)
 PREDICTAND_NAME = sys.argv[1]
-#PREDICTAND_NAME = 'E-OBS' PREDICTAND_NAME = 'AEMET_0.25deg' PREDICTAND_NAME = 'Iberia01_v1.0' 
-# PREDICTAND_NAME = 'pti-grid' PREDICTAND_NAME = 'CHELSA' PREDICTAND_NAME = 'ERA5-Land0.25deg'
+MODEL_NUMBER = sys.argv[2]
 
 
 predictors_vars = ['t500', 't700', 't850', # Air temperature at 500, 700, 850 hPa
@@ -63,7 +62,6 @@ print("Predictores terminados!")
 file_name = utils.getFileName(DATA_PATH_PREDICTANDS_SAVE, PREDICTAND_NAME, keyword = 'tasmean')
 
 
-#/oceano/gmeteo/users/reyess/tfm/official-code
 predictand_path = f'{DATA_PATH_PREDICTANDS_SAVE}{PREDICTAND_NAME}/{file_name}'
 predictand = xr.open_dataset(predictand_path,
                              chunks=-1) # Near surface air temperature (daily mean)
@@ -138,7 +136,7 @@ if np.isnan(yTrainFlat_array).sum() > 0:
 
 # Comenzamos entrenamiento del modelo
 # Load the DeepESD model
-modelName = f'DeepESD_tas_{PREDICTAND_NAME}' # Name used to save the model as a .pt file
+modelName = f'DeepESD_tas_{PREDICTAND_NAME}_{MODEL_NUMBER}' # Name used to save the model as a .pt file
 model = models.DeepESD(spatial_x_dim=xTrainStand_array.shape[2:],
                        out_dim=yTrainFlat_array.shape[1],
                        channelsInputLayer=xTrainStand_array.shape[1],
@@ -216,6 +214,6 @@ for season_name, months in {'spring': 'MAM', 'summer': 'JJA', 'autumn': 'SON', '
     y_pred_season = yPredTest.isel(time = (yPredTest.time.dt.season == months))
     y_test_metrics = utils.getMetricsTemp(y_test_season)
     y_pred_metrics = utils.getMetricsTemp(y_pred_season) # y_metrics = {'mean': , '99quantile': , 'std': , 'trend': }
-    utils.getGraphsTemp(y_test_metrics, y_pred_metrics, season_name, FIGS_PATH, PREDICTAND_NAME)
+    utils.getGraphsTemp(y_test_metrics, y_pred_metrics, season_name, FIGS_PATH, f"{PREDICTAND_NAME}-{MODEL_NUMBER}")
 
 print("Terminado con exito!")

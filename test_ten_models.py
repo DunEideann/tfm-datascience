@@ -10,7 +10,7 @@ DATA_PATH_PREDICTANDS_SAVE = '/lustre/gmeteo/WORK/reyess/data/predictand/'
 FIGS_PATH = '/lustre/gmeteo/WORK/reyess/figs/'
 MODELS_PATH = '/oceano/gmeteo/users/reyess/tfm/official-code/models'
 DATA_PREDICTORS_TRANSFORMED = '/lustre/gmeteo/WORK/reyess/data/NorthAtlanticRegion_1.5degree/'
-PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/GCM/'
+PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/GCM/AEMET/'
 VARIABLES_TO_DROP = ['lon_bnds', 'lat_bnds', 'crs']
 LAT_SLICE = slice(33.5, 48.6)
 LON_SLICE = slice(-10.5, 4.6)
@@ -26,14 +26,13 @@ hist_reference = ('1980-01-01', '2014-12-31')
 hist_baseline = ('1995-01-01', '2014-12-31') #95-14
 future_1 = ('2021-01-01', '2040-12-31')
 future_2 = ('2041-01-01', '2060-12-31')
-future_3 = ('2081-01-01', '2100-12-31')
-future_4 = ('2061-01-01', '2080-12-31')
-periods = [hist_baseline, future_1, future_2, future_3, future_4]
+future_3 = ('2081-01-01', '2100-12-31') 
+periods = [hist_baseline, future_1, future_2, future_3]
 yearsTrain = ('1980-01-01', '2003-12-31')
 yearsTest = ('2004-01-01', '2015-12-31')
 
 # Cargamos los datos del dataset
-predictand = utils.getPredictand(DATA_PATH_PREDICTANDS_SAVE, MODEL_NAME, 'tasmean')
+predictand = utils.getPredictand(DATA_PATH_PREDICTANDS_SAVE, MODEL_NAME.rpartition('_')[0], 'tasmean')
 predictand = predictand.sel(time=slice(*(yearsTrain[0], yearsTrain[1]))).load()
 
 # Creamos la mascara a usar
@@ -83,7 +82,7 @@ target_predictor = utils.standarBiasCorrection(
 
 
 # Standardize the predictor
-# Tiene que ser Era5 de 1980 a 2015
+# Tiene que ser Era5 de 80 a 2015
 meanTrain = era5_train.mean('time')
 stdTrain = era5_train.std('time')
 xStand = (target_predictor - meanTrain) / stdTrain
