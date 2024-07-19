@@ -83,6 +83,21 @@ def getMetricsTemp(data, var = None, short = False):#, mask=None):
 
     return response
 
+def getMetricsSimilarity(data, var = None):
+    if var == None:
+        var = 'tasmean'
+    combined_data = xr.merge(data, combine='outer')
+    val_mean = combined_data.mean(dim = 'time')
+    val_st = combined_data.std(dim = 'time')
+
+    response = {
+        'mean': val_mean,
+        'std': val_st,
+        '2std': 2*val_st
+    }
+    
+    return response
+
 def __graphTrend(metrics, season_name, folder_path, pred_name, extra = ''):
     """_summary_
 
