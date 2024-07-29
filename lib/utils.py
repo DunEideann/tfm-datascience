@@ -9,6 +9,7 @@ from scipy import signal, stats
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 from matplotlib.colors import ListedColormap, BoundaryNorm, LinearSegmentedColormap
+import itertools
 
 graph_dict = {
         'mean': 'Mean',
@@ -1469,3 +1470,77 @@ def efemerideGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, 
 
     total_time = time() - start_time
     print(f"El código de graficos de {pred_type} se ejecutó en {total_time:.2f} segundos.")
+
+def __getSimilarity(set1, set2, sigma_number = 1):
+    validRange = (set1['mean'] - set1['std']*sigma_number, set1['mean'] + set1['std']*sigma_number)
+    
+    response_set = set2[['lat', 'lon']]
+    response_set['point_similarity'] = set1['mean']<=validRange[1] and set1['mean']>=validRange[0]
+
+    return response_set
+
+def __getPercentage(set_similarity, decimals = 2):
+    size = len(set_similarity['point_similarity'])
+    total_similarity = set_similarity['point_similarity'].sum()
+
+    return round(total_similarity/size, decimals)
+
+
+def graphSimilarityPercentage(datasets, figs_path, scenario, sigma_number = 1, extension = 'pdf'):
+    combinatories = list(itertools.product(datasets[scenario], repeat=2))
+    quantity = len(datasets[scenario])
+    fig, axes = plt.subplots(nrows=quantity, ncols=quantity, figsize=(10, 10))
+
+    for i, key1 in enumerate(datasets[scenario]):
+        for j, key2 in enumerate(datasets[scenario]):
+
+            similarity = __getSimilarity(set1 = datasets[scenario][key1], set2= datasets[scenario][key2], sigma_number=sigma_number)
+            percentage = __getPercentage(similarity)
+            ax = axes[i, j]
+            ax.set_title(f'{key1.capitalize()}', fontsize=18)
+            # Añadir el número al subgráfico
+            ax.text(0.5, 0.5, f'{percentage}%', ha='center', va='center', fontsize=12)
+            # Eliminar los ejes
+            ax.axis('off')
+
+    plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.2) #95 05
+    plt.savefig(f'{figs_path}/similarityPercentage_{scenario}_sigma{sigma_number}.{extension}', bbox_inches='tight')
+    plt.close()
+
+def graphSimilarityGrid(datasets, figs_path, scenario, sigma_number = 1, extension = 'pdf'):
+
+    # Crear un colormap personalizado con los colores celeste y rojo
+    colors = ['lightblue', 'red']  # Celeste para False, rojo para True
+    cmap = ListedColormap(colors)
+    bounds = [0, 1]  # Definir límites de valores para el colormap
+    norm = BoundaryNorm(bounds, cmap.N)
+
+    quantity = len(datasets[scenario])
+    fig, axes = plt.subplots(nrows=quantity, ncols=quantity, figsize=(15, 15), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+
+    for i, key1 in enumerate(datasets[scenario]):
+        for j, key2 in enumerate(datasets[scenario]):
+
+            similarity = __getSimilarity(set1 = datasets[scenario][key1], set2= datasets[scenario][key2], sigma_number=sigma_number)
+            ax = axes[i, j]
+            ax.coastlines(resolution='10m')
+            ax.set_title(f'{key1.capitalize()}', fontsize=18)
+            dataToPlot = similarity['point_similarity']
+            im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
+                                dataToPlot,
+                                transform=ccrs.PlateCarree(),
+                                cmap=cmap,
+                                norm=norm)
+            
+            # Agregar la etiqueta en la izquierda de la fila
+            if j == 0:  # Solo para la primera columna de cada fila
+                ax.annotate(f'{key2.capitalize()}', xy=(-0.1, 0.5), xycoords='axes fraction',
+                            ha='right', va='center', fontsize=18, rotation=90)
+            
+    cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])#fig.add_axes([0.91, 0.51, 0.04, 0.425])
+    cbar = plt.colorbar(im, cax, pad=0.05, orientation='vertical', spacing='uniform')#, extend='both', extendfrac='auto', )
+    cbar.ax.tick_params(labelsize=18)
+
+    plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.2) #95 05
+    plt.savefig(f'{figs_path}/similarityGraphs_{scenario}_sigma{sigma_number}.{extension}', bbox_inches='tight')
+    plt.close()

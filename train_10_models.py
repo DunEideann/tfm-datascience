@@ -12,7 +12,7 @@ import os
 import sys
 from scipy import signal, stats
 #/oceano/gmeteo/users/reyess/tfm/official-code
-
+#/oceano/gmeteo/users/reyess/tfm/official-code
 DATA_PATH_PREDICTORS = '/lustre/gmeteo/PTICLIMA/DATA/REANALYSIS/ERA5/data_derived/NorthAtlanticRegion_1.5degree/'
 DATA_PATH_PREDICTANDS_READ = '/lustre/gmeteo/PTICLIMA/DATA/AUX/GRID_INTERCOMP/'
 DATA_PATH_PREDICTANDS_SAVE = '/lustre/gmeteo/WORK/reyess/data/predictand/'
@@ -25,6 +25,10 @@ LAT_SLICE = slice(33.5, 48.6)
 LON_SLICE = slice(-10.5, 4.6)
 PREDICTAND_NAME = sys.argv[1]
 MODEL_NUMBER = sys.argv[2]
+#PREDICTAND_NAME = 'Iberia01_v1.0' 
+#MODEL_NUMBER = 1
+#PREDICTAND_NAME = 'E-OBS' PREDICTAND_NAME = 'AEMET_0.25deg' PREDICTAND_NAME = 'Iberia01_v1.0' 
+# PREDICTAND_NAME = 'pti-grid' PREDICTAND_NAME = 'CHELSA' PREDICTAND_NAME = 'ERA5-Land0.25deg'
 
 
 predictors_vars = ['t500', 't700', 't850', # Air temperature at 500, 700, 850 hPa
@@ -33,6 +37,46 @@ predictors_vars = ['t500', 't700', 't850', # Air temperature at 500, 700, 850 hP
 'u500', 'u700', 'u850', # Zonal wind component at 500, 700, 850 hPa
 'msl'] # Mean sea level pressure (psl)
 
+
+print(f'Checking directory: {DATA_PREDICTORS_TRANSFORMED}')
+print('Exists:', os.path.exists(DATA_PREDICTORS_TRANSFORMED))
+print('Is Directory:', os.path.isdir(DATA_PREDICTORS_TRANSFORMED))
+
+# import os
+# import stat
+
+# # Verificar el directorio de trabajo actual
+# print(f'Directorio de trabajo actual: {os.getcwd()}')
+
+# # Verificar una variable de entorno específica
+# print(f'Variable de entorno $HOME: {os.getenv("HOME")}')
+
+# # Configurar una variable de entorno si es necesario
+# os.environ['VARIABLE'] = 'valor'
+
+# # Define la ruta del directorio
+# path = '/lustre/gmeteo/WORK/reyess/data/NorthAtlanticRegion_1.5degree/'
+
+# # Comprobar si el directorio existe
+# if os.path.exists(path):
+#     print(f'El directorio {path} existe.')
+# else:
+#     print(f'El directorio {path} no existe.')
+
+# # Obtener el estado del archivo
+# status = os.stat(path)
+
+# # Comprobar permisos de lectura, escritura y ejecución para el propietario
+# perm_owner = stat.S_IMODE(status.st_mode) & stat.S_IRWXU
+# print(f'Permisos para el propietario: {oct(perm_owner)}')
+
+# # Comprobar permisos de lectura, escritura y ejecución para el grupo
+# perm_group = stat.S_IMODE(status.st_mode) & stat.S_IRWXG
+# print(f'Permisos para el grupo: {oct(perm_group)}')
+
+# # Comprobar permisos de lectura, escritura y ejecución para otros
+# perm_others = stat.S_IMODE(status.st_mode) & stat.S_IRWXO
+# print(f'Permisos para otros: {oct(perm_others)}')
 
 # Mergiamos los datasets por la coordenada tiempo si es necesario
 data_transformed = os.listdir(f'{DATA_PREDICTORS_TRANSFORMED}')

@@ -4,11 +4,14 @@ import sys
 
 FIGS_PATH = '/lustre/gmeteo/WORK/reyess/figs/'
 PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/'
-MODEL_NAME = sys.argv[1]
-PERIOD = int(sys.argv[2])
-SCENARIO = int(sys.argv[3])
-PREDICTOR = sys.argv[4]
-
+# MODEL_NAME = sys.argv[1]
+# PERIOD = int(sys.argv[2])
+# SCENARIO = int(sys.argv[3])
+# PREDICTOR = sys.argv[4]
+#MODEL_NAME = sys.argv[1]
+PERIOD = 3
+SCENARIO = 3
+PREDICTOR = 'EC-Earth3-Veg'
 
 # Listado de escenarios a predecir
 scenarios = ['ssp126', 'ssp245', 'ssp370', 'ssp585']
@@ -43,5 +46,15 @@ for predictand in predictands:
         yPredLoaded[scenario][predictand][predictand_number] = xr.open_dataset(f'{PREDS_PATH}predTen_{modelName}_{PREDICTOR}_{scenario}_{period[0]}-{period[1]}.nc')
 
     yPredMetrics[scenario][predictand] = utils.getMetricsSimilarity(yPredLoaded[scenario][predictand])
+
+
+utils.graphSimilarityPercentage(yPredMetrics[scenario], FIGS_PATH, scenario, sigma_number=1)
+utils.graphSimilarityPercentage(yPredMetrics[scenario], FIGS_PATH, scenario, sigma_number=2)
+
+utils.graphSimilarityGrid(yPredMetrics[scenario], FIGS_PATH, scenario, sigma_number=1)
+utils.graphSimilarityGrid(yPredMetrics[scenario], FIGS_PATH, scenario, sigma_number=1)
+
+
+print("Graphs Similarities Done!")
 
 
