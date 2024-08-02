@@ -3,7 +3,7 @@ from lib import utils, models, data
 import sys
 
 FIGS_PATH = '/lustre/gmeteo/WORK/reyess/figs/'
-PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/'
+PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/GCM/AEMET/'
 # MODEL_NAME = sys.argv[1]
 # PERIOD = int(sys.argv[2])
 # SCENARIO = int(sys.argv[3])
@@ -42,17 +42,17 @@ for predictand in predictands:
     yPredMetrics[scenario][predictand] = {}
 
     for predictand_number in predictand_numbered:
-        modelName = f'DeepESD_tas_{predictand_number}' 
-        yPredLoaded[scenario][predictand][predictand_number] = xr.open_dataset(f'{PREDS_PATH}predTen_{modelName}_{PREDICTOR}_{scenario}_{period[0]}-{period[1]}.nc')
+        modelName = f'DeepESD_tas_{predictand_number}'
+        yPredLoaded[scenario][predictand][predictand_number] = xr.open_dataset(f'{PREDS_PATH}predGCM_{modelName}_{PREDICTOR}_{scenario}_{period[0]}-{period[1]}.nc')
 
     yPredMetrics[scenario][predictand] = utils.getMetricsSimilarity(yPredLoaded[scenario][predictand])
 
 
-utils.graphSimilarityPercentage(yPredMetrics[scenario], FIGS_PATH, scenario, sigma_number=1)
-utils.graphSimilarityPercentage(yPredMetrics[scenario], FIGS_PATH, scenario, sigma_number=2)
+utils.graphSimilarityPercentage(yPredMetrics, FIGS_PATH, scenario, sigma_number=1)
+utils.graphSimilarityPercentage(yPredMetrics, FIGS_PATH, scenario, sigma_number=2)
 
-utils.graphSimilarityGrid(yPredMetrics[scenario], FIGS_PATH, scenario, sigma_number=1)
-utils.graphSimilarityGrid(yPredMetrics[scenario], FIGS_PATH, scenario, sigma_number=1)
+utils.graphSimilarityGrid(yPredMetrics, FIGS_PATH, scenario, sigma_number=1)
+utils.graphSimilarityGrid(yPredMetrics, FIGS_PATH, scenario, sigma_number=1)
 
 
 print("Graphs Similarities Done!")

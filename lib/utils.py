@@ -87,9 +87,15 @@ def getMetricsTemp(data, var = None, short = False):#, mask=None):
 def getMetricsSimilarity(data, var = None):
     if var == None:
         var = 'tasmean'
-    combined_data = xr.merge(data, combine='outer')
-    val_mean = combined_data.mean(dim = 'time')
-    val_st = combined_data.std(dim = 'time')
+    datasets_list = list(data.values())
+    temporal_mean = []
+    temporal_std = []
+    for key, value in data.items():
+        temporal_mean.append(value.mean(dim='time'))
+        temporal_std.append(value.std(dim='time'))
+
+    val_mean = sum(temporal_mean)/len(temporal_mean)
+    val_st = sum(temporal_std)/len(temporal_std)
 
     response = {
         'mean': val_mean,
@@ -1473,17 +1479,20 @@ def efemerideGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, 
 
 def __getSimilarity(set1, set2, sigma_number = 1):
     validRange = (set1['mean'] - set1['std']*sigma_number, set1['mean'] + set1['std']*sigma_number)
-    
-    response_set = set2[['lat', 'lon']]
-    response_set['point_similarity'] = set1['mean']<=validRange[1] and set1['mean']>=validRange[0]
+    response_set = set2['mean'].copy()
+    response_set = response_set.assign(point_similarity=(set2['mean']<=validRange[1] and set2['mean']>=validRange[0]).to_array())
+    response_set.drop_vars['variable']
 
     return response_set
 
 def __getPercentage(set_similarity, decimals = 2):
     size = len(set_similarity['point_similarity'])
     total_similarity = set_similarity['point_similarity'].sum()
-
-    return round(total_similarity/size, decimals)
+    print("---------------------------")
+    print(total_similarity.values)
+    print("++++++++++++++++++++++++++++++++")
+    print(set_similarity)
+    return round(total_similarity.values/size, decimals)
 
 
 def graphSimilarityPercentage(datasets, figs_path, scenario, sigma_number = 1, extension = 'pdf'):
@@ -1493,8 +1502,8 @@ def graphSimilarityPercentage(datasets, figs_path, scenario, sigma_number = 1, e
 
     for i, key1 in enumerate(datasets[scenario]):
         for j, key2 in enumerate(datasets[scenario]):
-
             similarity = __getSimilarity(set1 = datasets[scenario][key1], set2= datasets[scenario][key2], sigma_number=sigma_number)
+            print(similarity)
             percentage = __getPercentage(similarity)
             ax = axes[i, j]
             ax.set_title(f'{key1.capitalize()}', fontsize=18)
