@@ -4,6 +4,7 @@ import sys
 
 FIGS_PATH = '/lustre/gmeteo/WORK/reyess/figs/'
 PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/GCM/AEMET/'
+DATA_PATH_PREDICTANDS_SAVE = '/lustre/gmeteo/WORK/reyess/data/predictand/'
 # MODEL_NAME = sys.argv[1]
 # PERIOD = int(sys.argv[2])
 # SCENARIO = int(sys.argv[3])
@@ -43,16 +44,35 @@ for predictand in predictands:
 
     for predictand_number in predictand_numbered:
         modelName = f'DeepESD_tas_{predictand_number}'
+        data_temp = xr.open_dataset(f'{PREDS_PATH}predGCM_{modelName}_{PREDICTOR}_{scenario}_{period[0]}-{period[1]}.nc')
+        # yPredLoaded[scenario][predictand][predictand_number] = #utils.maskData(
+        # path = f'{DATA_PATH_PREDICTANDS_SAVE}AEMET_0.25deg/AEMET_0.25deg_tasmean_1951-2022.nc',
+        # var='tasmean',
+        # to_slice=(yearsTrain[0], yearsTest[1]),
+        # objective = data_temp,
+        # secondGrid = data_temp)
         yPredLoaded[scenario][predictand][predictand_number] = xr.open_dataset(f'{PREDS_PATH}predGCM_{modelName}_{PREDICTOR}_{scenario}_{period[0]}-{period[1]}.nc')
 
     yPredMetrics[scenario][predictand] = utils.getMetricsSimilarity(yPredLoaded[scenario][predictand])
-
+# predictand = utils.maskData(
+#         path = f'{DATA_PATH_PREDICTANDS_SAVE}AEMET_0.25deg/AEMET_0.25deg_tasmean_1951-2022.nc',
+#         var='tasmean',
+#         to_slice=(yearsTrain[0], yearsTest[1]),
+#         objective = predictand,
+#         secondGrid = predictand)
 
 utils.graphSimilarityPercentage(yPredMetrics, FIGS_PATH, scenario, sigma_number=1)
 utils.graphSimilarityPercentage(yPredMetrics, FIGS_PATH, scenario, sigma_number=2)
+utils.graphSimilarityPercentage(yPredMetrics, FIGS_PATH, scenario, sigma_number=0.1)
+utils.graphSimilarityPercentage(yPredMetrics, FIGS_PATH, scenario, sigma_number=0.5)
+
 
 utils.graphSimilarityGrid(yPredMetrics, FIGS_PATH, scenario, sigma_number=1)
-utils.graphSimilarityGrid(yPredMetrics, FIGS_PATH, scenario, sigma_number=1)
+utils.graphSimilarityGrid(yPredMetrics, FIGS_PATH, scenario, sigma_number=2)
+utils.graphSimilarityGrid(yPredMetrics, FIGS_PATH, scenario, sigma_number=0.1)
+utils.graphSimilarityGrid(yPredMetrics, FIGS_PATH, scenario, sigma_number=0.5)
+
+
 
 
 print("Graphs Similarities Done!")

@@ -1480,19 +1480,42 @@ def efemerideGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, 
 def __getSimilarity(set1, set2, sigma_number = 1):
     validRange = (set1['mean'] - set1['std']*sigma_number, set1['mean'] + set1['std']*sigma_number)
     response_set = set2['mean'].copy()
-    response_set = response_set.assign(point_similarity=(set2['mean']<=validRange[1] and set2['mean']>=validRange[0]).to_array())
-    response_set.drop_vars['variable']
+    #point = np.array((set2['mean']<=validRange[1] and set2['mean']>=validRange[0]).to_array())
+    #print(point)
+    #response_set = response_set.assign(point_similarity=(['lon', 'lat'], point))
+    #print("+++++++++++++++++++++++++++++++++")
+    #print(f"set1 mean: {set1['mean']}")
+    
+    is_nan = np.isnan(set1['mean']) | np.isnan(set2['mean'])
+    #print(".........................................")
+    #print(f"nans: {is_nan}")
+    point_similarity = (set2['mean']<=validRange[1] and set2['mean']>=validRange[0])
+    #print("---------------------------")
+    #print(f"point1: {point_similarity}")
+    point_similarity = point_similarity.where(~is_nan, np.nan).to_array()
+    # print("***********************************")
+    # print(f"point2: {point_similarity}")
+    # response_set = response_set.assign(point_similarity=point_similarity)
+    # #print(f"validRange: {validRange} - set2mean: {set2['mean']}")
+    # response_set = response_set.drop_vars('variable')
+    # print("///////////////////////////////////")
+    # print(f"response: {response_set}")
+    # print("------------------------------------------------")
+    # print(f"size: {response_set.size} - len: {len(response_set)} - len.tas: {len(response_set)}")
 
-    return response_set
+    return point_similarity
 
-def __getPercentage(set_similarity, decimals = 2):
-    size = len(set_similarity['point_similarity'])
-    total_similarity = set_similarity['point_similarity'].sum()
-    print("---------------------------")
-    print(total_similarity.values)
-    print("++++++++++++++++++++++++++++++++")
-    print(set_similarity)
-    return round(total_similarity.values/size, decimals)
+def __getPercentage(set_similarity, size = 730, decimals = 2):
+    #print(set_similarity)
+    #print("+++++++++++++++++++++++++++++++++++++++")
+    #print(set_similarity.values)
+    #size = len(set_similarity.values)
+    total_similarity = (set_similarity.values==True).sum().item()
+    # print(f"SIZE: {size.values}")
+    # print(f"TOTAL 1: {total_similarity/size}")
+    # print(f"TOTAL 2: {set_similarity.sum().item()}")
+    #print(f"size: {size} - total: {total_similarity}")
+    return round((total_similarity/size.values)*100, decimals)
 
 
 def graphSimilarityPercentage(datasets, figs_path, scenario, sigma_number = 1, extension = 'pdf'):
@@ -1503,25 +1526,32 @@ def graphSimilarityPercentage(datasets, figs_path, scenario, sigma_number = 1, e
     for i, key1 in enumerate(datasets[scenario]):
         for j, key2 in enumerate(datasets[scenario]):
             similarity = __getSimilarity(set1 = datasets[scenario][key1], set2= datasets[scenario][key2], sigma_number=sigma_number)
-            print(similarity)
-            percentage = __getPercentage(similarity)
+            print(f"nan: {np.isnan(similarity).sum()} - total: {similarity.size} - trues: {(similarity==True).sum()}")
+            print(f"similarity: {similarity} - squeeze: {similarity.squeeze()}")
+            percentage = __getPercentage(similarity.squeeze(), similarity.size-np.isnan(similarity).sum())
             ax = axes[i, j]
-            ax.set_title(f'{key1.capitalize()}', fontsize=18)
+            if i==0:
+                ax.set_title(f'{key2.capitalize()}', fontsize=12)
             # Añadir el número al subgráfico
-            ax.text(0.5, 0.5, f'{percentage}%', ha='center', va='center', fontsize=12)
+            ax.text(0.5, 0.5, f'{percentage}%', ha='center', va='center', fontsize=18)
             # Eliminar los ejes
             ax.axis('off')
+            if j == 0:  # Solo para la primera columna de cada fila
+                    ax.annotate(f'{key1.capitalize()}', xy=(-0.1, 0.5), xycoords='axes fraction',
+                                ha='right', va='center', fontsize=12, rotation=90)
 
+    plt.suptitle(f'Similarity Grid for {scenario.capitalize()} (σ={sigma_number}) (Left:Reference - Right:Comparison )', fontsize=10, fontweight='bold')
     plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.2) #95 05
     plt.savefig(f'{figs_path}/similarityPercentage_{scenario}_sigma{sigma_number}.{extension}', bbox_inches='tight')
     plt.close()
+    
 
 def graphSimilarityGrid(datasets, figs_path, scenario, sigma_number = 1, extension = 'pdf'):
 
     # Crear un colormap personalizado con los colores celeste y rojo
     colors = ['lightblue', 'red']  # Celeste para False, rojo para True
     cmap = ListedColormap(colors)
-    bounds = [0, 1]  # Definir límites de valores para el colormap
+    bounds = [-0.5, 0.5, 1.5]  # Definir límites de valores para el colormap
     norm = BoundaryNorm(bounds, cmap.N)
 
     quantity = len(datasets[scenario])
@@ -1533,9 +1563,13 @@ def graphSimilarityGrid(datasets, figs_path, scenario, sigma_number = 1, extensi
             similarity = __getSimilarity(set1 = datasets[scenario][key1], set2= datasets[scenario][key2], sigma_number=sigma_number)
             ax = axes[i, j]
             ax.coastlines(resolution='10m')
-            ax.set_title(f'{key1.capitalize()}', fontsize=18)
-            dataToPlot = similarity['point_similarity']
-            im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
+            if i==0:
+                ax.set_title(f'{key2.capitalize()}', fontsize=12)
+            #print(similarity)
+            dataToPlot = similarity.values.squeeze()
+            #print(dataToPlot)
+            #print(f"eje: {ax}, i: {i}, j: {j} y key1: {key1}, key2: {key2}")
+            im = ax.pcolormesh(similarity.coords['lon'].values, similarity.coords['lat'].values,
                                 dataToPlot,
                                 transform=ccrs.PlateCarree(),
                                 cmap=cmap,
@@ -1543,13 +1577,14 @@ def graphSimilarityGrid(datasets, figs_path, scenario, sigma_number = 1, extensi
             
             # Agregar la etiqueta en la izquierda de la fila
             if j == 0:  # Solo para la primera columna de cada fila
-                ax.annotate(f'{key2.capitalize()}', xy=(-0.1, 0.5), xycoords='axes fraction',
-                            ha='right', va='center', fontsize=18, rotation=90)
-            
+                ax.annotate(f'{key1.capitalize()}', xy=(-0.1, 0.5), xycoords='axes fraction',
+                            ha='right', va='center', fontsize=12, rotation=90)
+
     cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])#fig.add_axes([0.91, 0.51, 0.04, 0.425])
     cbar = plt.colorbar(im, cax, pad=0.05, orientation='vertical', spacing='uniform')#, extend='both', extendfrac='auto', )
     cbar.ax.tick_params(labelsize=18)
-
+    
+    plt.suptitle(f'Similarity Grid for {scenario.capitalize()} (σ={sigma_number}) (Left:Reference - Right:Comparison )', fontsize=10, fontweight='bold')
     plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.2) #95 05
     plt.savefig(f'{figs_path}/similarityGraphs_{scenario}_sigma{sigma_number}.{extension}', bbox_inches='tight')
     plt.close()
