@@ -30,7 +30,7 @@ future_3 = ('2081-01-01', '2100-12-31')
 future_4 = ('2061-01-01', '2080-12-31')
 yearsTrain = ('1980-01-01', '2003-12-31')
 yearsTest = ('2004-01-01', '2015-12-31')
-periods = [hist_baseline, future_1, future_2, future_3, future_4, yearsTest]
+periods = [hist_baseline, future_1, future_2, future_3, future_4, yearsTest, yearsTrain]
 
 # Cargamos los datos del dataset
 predictand = utils.getPredictand(DATA_PATH_PREDICTANDS_SAVE, MODEL_NAME.rpartition('_')[0], 'tasmean')

@@ -87,20 +87,20 @@ def getMetricsTemp(data, var = None, short = False):#, mask=None):
 def getMetricsSimilarity(data, var = None):
     if var == None:
         var = 'tasmean'
-    datasets_list = list(data.values())
+
     temporal_mean = []
-    temporal_std = []
     for key, value in data.items():
         temporal_mean.append(value.mean(dim='time'))
-        temporal_std.append(value.std(dim='time'))
 
-    val_mean = sum(temporal_mean)/len(temporal_mean)
-    val_st = sum(temporal_std)/len(temporal_std)
+
+    temporal_mean_concat = xr.concat(temporal_mean, dim='member')
+    mean_ensemble = temporal_mean_concat.mean('member')
+    std_ensemble = temporal_mean_concat.std('member')
+
 
     response = {
-        'mean': val_mean,
-        'std': val_st,
-        '2std': 2*val_st
+        'mean': mean_ensemble,
+        'std': std_ensemble
     }
     
     return response
@@ -1466,9 +1466,6 @@ def efemerideGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, 
             cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')#, extend='both', extendfrac='auto', )
             cbar.ax.tick_params(labelsize=18)
 
-    #fig.suptitle(title, fontsize=20)
-    #fig.text(0.5, 0.94, 'Título para los 6 gráficos superiores', ha='center', fontsize=18)
-    #fig.text(0.5, 0.49, 'Título para los 6 gráficos inferiores', ha='center', fontsize=18)
 
     plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.2) #95 05
     plt.savefig(f'{figs_path}/fig{fig_num}metrics_{pred_type}.{extension}', bbox_inches='tight')
@@ -1477,44 +1474,22 @@ def efemerideGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, 
     total_time = time() - start_time
     print(f"El código de graficos de {pred_type} se ejecutó en {total_time:.2f} segundos.")
 
-def __getSimilarity(set1, set2, sigma_number = 1):
-    validRange = (set1['mean'] - set1['std']*sigma_number, set1['mean'] + set1['std']*sigma_number)
-    response_set = set2['mean'].copy()
-    #point = np.array((set2['mean']<=validRange[1] and set2['mean']>=validRange[0]).to_array())
-    #print(point)
-    #response_set = response_set.assign(point_similarity=(['lon', 'lat'], point))
-    #print("+++++++++++++++++++++++++++++++++")
-    #print(f"set1 mean: {set1['mean']}")
-    
+def __getSimilarity(set1, set2, sigma_number = 1, grid_selection = None):
+    validRange = (set1['mean'] - set1['std']*sigma_number, set1['mean'] + set1['std']*sigma_number)    
     is_nan = np.isnan(set1['mean']) | np.isnan(set2['mean'])
-    #print(".........................................")
-    #print(f"nans: {is_nan}")
-    point_similarity = (set2['mean']<=validRange[1] and set2['mean']>=validRange[0])
-    #print("---------------------------")
-    #print(f"point1: {point_similarity}")
+    point_similarity = (set2['mean']<=validRange[1]) & (set2['mean']>=validRange[0])
     point_similarity = point_similarity.where(~is_nan, np.nan).to_array()
-    # print("***********************************")
-    # print(f"point2: {point_similarity}")
-    # response_set = response_set.assign(point_similarity=point_similarity)
-    # #print(f"validRange: {validRange} - set2mean: {set2['mean']}")
-    # response_set = response_set.drop_vars('variable')
-    # print("///////////////////////////////////")
-    # print(f"response: {response_set}")
-    # print("------------------------------------------------")
-    # print(f"size: {response_set.size} - len: {len(response_set)} - len.tas: {len(response_set)}")
+    # if grid_selection != None:
+    #     print(f"Mean: {set2['mean'].sel(lat=grid_selection[0], lon=grid_selection[1])['tasmean'].item()}")
+    #     print(f"Izquierdo: {validRange[0].sel(lat=grid_selection[0], lon=grid_selection[1])['tasmean'].item()}")
+    #     print(f"Derecho: {validRange[1].sel(lat=grid_selection[0], lon=grid_selection[1])['tasmean'].item()}")
+    #     print(f"Similarity: {point_similarity.sel(lat=grid_selection[0], lon=grid_selection[1])}")
 
     return point_similarity
 
 def __getPercentage(set_similarity, size = 730, decimals = 2):
-    #print(set_similarity)
-    #print("+++++++++++++++++++++++++++++++++++++++")
-    #print(set_similarity.values)
-    #size = len(set_similarity.values)
     total_similarity = (set_similarity.values==True).sum().item()
-    # print(f"SIZE: {size.values}")
-    # print(f"TOTAL 1: {total_similarity/size}")
-    # print(f"TOTAL 2: {set_similarity.sum().item()}")
-    #print(f"size: {size} - total: {total_similarity}")
+
     return round((total_similarity/size.values)*100, decimals)
 
 
@@ -1522,31 +1497,36 @@ def graphSimilarityPercentage(datasets, figs_path, scenario, sigma_number = 1, e
     combinatories = list(itertools.product(datasets[scenario], repeat=2))
     quantity = len(datasets[scenario])
     fig, axes = plt.subplots(nrows=quantity, ncols=quantity, figsize=(10, 10))
-
+    # i = 4, j = 0
     for i, key1 in enumerate(datasets[scenario]):
         for j, key2 in enumerate(datasets[scenario]):
             similarity = __getSimilarity(set1 = datasets[scenario][key1], set2= datasets[scenario][key2], sigma_number=sigma_number)
-            print(f"nan: {np.isnan(similarity).sum()} - total: {similarity.size} - trues: {(similarity==True).sum()}")
-            print(f"similarity: {similarity} - squeeze: {similarity.squeeze()}")
             percentage = __getPercentage(similarity.squeeze(), similarity.size-np.isnan(similarity).sum())
+
             ax = axes[i, j]
-            if i==0:
-                ax.set_title(f'{key2.capitalize()}', fontsize=12)
             # Añadir el número al subgráfico
             ax.text(0.5, 0.5, f'{percentage}%', ha='center', va='center', fontsize=18)
             # Eliminar los ejes
             ax.axis('off')
+            # Añadir un marco alrededor del subplot
+            for spine in ax.spines.values():
+                spine.set_edgecolor('black')
+                spine.set_linewidth(2)
+            
+            if i==0:
+                ax.set_title(f'{key2.capitalize()}', fontsize=12)
+
             if j == 0:  # Solo para la primera columna de cada fila
                     ax.annotate(f'{key1.capitalize()}', xy=(-0.1, 0.5), xycoords='axes fraction',
                                 ha='right', va='center', fontsize=12, rotation=90)
 
-    plt.suptitle(f'Similarity Grid for {scenario.capitalize()} (σ={sigma_number}) (Left:Reference - Right:Comparison )', fontsize=10, fontweight='bold')
-    plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.2) #95 05
+    plt.suptitle(f'Similarity Grid for {scenario.capitalize()} (σ={sigma_number}) (Left:Reference - Top:Comparison )', fontsize=14, fontweight='bold')
+    plt.subplots_adjust(top=0.9, bottom=0.05, wspace=0.002, hspace=0.2) #95 05
     plt.savefig(f'{figs_path}/similarityPercentage_{scenario}_sigma{sigma_number}.{extension}', bbox_inches='tight')
     plt.close()
     
 
-def graphSimilarityGrid(datasets, figs_path, scenario, sigma_number = 1, extension = 'pdf'):
+def graphSimilarityGrid(datasets, figs_path, scenario, sigma_number = 1, grid_selection = None, extension = 'pdf'):
 
     # Crear un colormap personalizado con los colores celeste y rojo
     colors = ['lightblue', 'red']  # Celeste para False, rojo para True
@@ -1555,26 +1535,32 @@ def graphSimilarityGrid(datasets, figs_path, scenario, sigma_number = 1, extensi
     norm = BoundaryNorm(bounds, cmap.N)
 
     quantity = len(datasets[scenario])
-    fig, axes = plt.subplots(nrows=quantity, ncols=quantity, figsize=(15, 15), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+    fig, axes = plt.subplots(nrows=quantity, ncols=quantity, figsize=(15, 8.5), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
 
     for i, key1 in enumerate(datasets[scenario]):
+
         for j, key2 in enumerate(datasets[scenario]):
 
-            similarity = __getSimilarity(set1 = datasets[scenario][key1], set2= datasets[scenario][key2], sigma_number=sigma_number)
-            ax = axes[i, j]
+            similarity = __getSimilarity(set1 = datasets[scenario][key1], set2= datasets[scenario][key2], sigma_number=sigma_number, grid_selection=grid_selection)
+            ax = axes[i, j] # [filas, columnas]
             ax.coastlines(resolution='10m')
-            if i==0:
-                ax.set_title(f'{key2.capitalize()}', fontsize=12)
-            #print(similarity)
-            dataToPlot = similarity.values.squeeze()
-            #print(dataToPlot)
-            #print(f"eje: {ax}, i: {i}, j: {j} y key1: {key1}, key2: {key2}")
+            
+            if grid_selection == None:
+                dataToPlot = similarity.values.squeeze()
+            else:
+                dataToPlot = similarity.copy()
+                dataToPlot[:] = np.nan
+                dataToPlot.sel(lat=grid_selection[0], lon=grid_selection[1])[:] = similarity.sel(lat=grid_selection[0], lon=grid_selection[1])[:]
+                dataToPlot = dataToPlot.squeeze()
+
             im = ax.pcolormesh(similarity.coords['lon'].values, similarity.coords['lat'].values,
                                 dataToPlot,
                                 transform=ccrs.PlateCarree(),
                                 cmap=cmap,
                                 norm=norm)
             
+            if i==0:
+                ax.set_title(f'{key2.capitalize()}', fontsize=12)
             # Agregar la etiqueta en la izquierda de la fila
             if j == 0:  # Solo para la primera columna de cada fila
                 ax.annotate(f'{key1.capitalize()}', xy=(-0.1, 0.5), xycoords='axes fraction',
@@ -1583,8 +1569,196 @@ def graphSimilarityGrid(datasets, figs_path, scenario, sigma_number = 1, extensi
     cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])#fig.add_axes([0.91, 0.51, 0.04, 0.425])
     cbar = plt.colorbar(im, cax, pad=0.05, orientation='vertical', spacing='uniform')#, extend='both', extendfrac='auto', )
     cbar.ax.tick_params(labelsize=18)
-    
-    plt.suptitle(f'Similarity Grid for {scenario.capitalize()} (σ={sigma_number}) (Left:Reference - Right:Comparison )', fontsize=10, fontweight='bold')
-    plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.2) #95 05
-    plt.savefig(f'{figs_path}/similarityGraphs_{scenario}_sigma{sigma_number}.{extension}', bbox_inches='tight')
+    if grid_selection != None:
+        fig_name = f'{figs_path}/similarityGraphs_{scenario}_sigma{sigma_number}_lat{grid_selection[0].item()}_lon{grid_selection[1].item()}.{extension}'
+    else:
+        fig_name = f'{figs_path}/similarityGraphs_{scenario}_sigma{sigma_number}.{extension}'
+    plt.suptitle(f'Similarity Grid for {scenario.capitalize()} (σ={sigma_number}) (Left:Reference - Top:Comparison )', fontsize=14, fontweight='bold')
+    plt.subplots_adjust(top=0.9, bottom=0.05, wspace=0.002, hspace=0.002) #95 05
+    plt.savefig(fig_name, bbox_inches='tight')
     plt.close()
+
+def graphSimilarityMetric(datasets_metrics, figs_path, vmin, vmax, var, scenario = 'ssp585', extension = 'pdf', color='hot_r', color_change = None):
+    numLevels = 10
+    continuousCMAP = plt.get_cmap(color)
+    discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
+    discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
+    if color != 'hot_r':
+        colors = list(discreteCMAPnoWhite.colors)
+        #colors[4] = (1.0, 1.0, 1.0, 1.0)  # Blanco (RGBA)
+        if color_change == None:
+            colors[4] = (1, 239/255, 239/255, 1.0) # Light red
+        else:
+            colors[color_change[0]] = color_change[1]
+        discreteCMAPnoWhite = ListedColormap(colors)
+
+
+    nRows, nCols = 2, 3
+    fig, axes = plt.subplots(nRows, nCols, figsize=(15, nRows*3), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+    for counter, (predictand_name, predictand_data) in enumerate(datasets_metrics.items()): 
+        #Cambiar a un diccionario TODO
+        j = counter//nCols
+        i = counter%nCols
+        ax = axes[j, i]
+
+        ax.coastlines(resolution='10m')
+        ax.set_title(f'{predictand_name.capitalize()}', fontsize=18)
+        dataToPlot = predictand_data[var].to_array().isel(variable=0)
+
+        im = ax.pcolormesh(predictand_data[var].coords['lon'].values, predictand_data[var].coords['lat'].values,
+                            dataToPlot,
+                            transform=ccrs.PlateCarree(),
+                            cmap=discreteCMAPnoWhite,
+                            vmin=vmin, vmax=vmax)
+                            #norm=BoundaryNorm(bounds, cmap.N))
+
+        if counter == 0:
+            cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])#fig.add_axes([0.91, 0.51, 0.04, 0.425])
+            cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform')#, extend='both', extendfrac='auto', )
+            cbar.ax.tick_params(labelsize=18)
+
+
+    plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.2) #95 05
+    plt.savefig(f'{figs_path}/similarityGraph_{var.capitalize()}_{scenario}.{extension}', bbox_inches='tight')
+    plt.close()
+
+def graphMultipleTrains(dataset_metric, figs_path, vmin = 10, vmax = 30, var = 'mean', scenario = 'ssp585', extension = 'pdf', color='hot_r', color_change = None):
+
+    numLevels = 10
+    continuousCMAP = plt.get_cmap(color)
+    discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
+    discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
+    if color != 'hot_r':
+        colors = list(discreteCMAPnoWhite.colors)
+        if color_change == None:
+            colors[4] = (1, 239/255, 239/255, 1.0) # Light red
+        else:
+            colors[color_change[0]] = color_change[1]
+        discreteCMAPnoWhite = ListedColormap(colors)
+
+    quantity = len(dataset_metric[scenario])
+    fig, axes = plt.subplots(nrows=10, ncols=quantity, figsize=(15, 14), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+
+    for i, predictand_name in enumerate(dataset_metric[scenario]):
+        for j, predictand_numered in enumerate(dataset_metric[scenario][predictand_name]):
+            
+            ax = axes[j, i] # [filas, columnas]
+            ax.coastlines(resolution='10m')
+            
+            dataToPlot = dataset_metric[scenario][predictand_name][predictand_numered][var]
+
+            im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
+                                dataToPlot.to_array().isel(variable=0),
+                                transform=ccrs.PlateCarree(),
+                                cmap=discreteCMAPnoWhite,
+                                vmin=vmin, vmax=vmax)
+            
+            if j==0:
+                ax.set_title(f'{predictand_name.capitalize()}', fontsize=12)
+            # Agregar la etiqueta en la izquierda de la fila
+            if i == 0:  # Solo para la primera columna de cada fila
+                ax.annotate(f'Number {j}', xy=(-0.1, 0.5), xycoords='axes fraction',
+                            ha='right', va='center', fontsize=12, rotation=90)
+
+    cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])#fig.add_axes([0.91, 0.51, 0.04, 0.425])
+    cbar = plt.colorbar(im, cax, pad=0.05, orientation='vertical', spacing='uniform')#, extend='both', extendfrac='auto', )
+    cbar.ax.tick_params(labelsize=18)
+    fig_name = f'{figs_path}/modelGraphs_{scenario}_metric{var.capitalize()}.{extension}'
+    plt.suptitle(f'Metric {var.capitalize()} for {scenario.capitalize()} for 10 Trains', fontsize=14, fontweight='bold')
+    plt.subplots_adjust(top=0.9, bottom=0.05, wspace=0.002, hspace=0.002) #95 05
+    plt.savefig(fig_name, bbox_inches='tight')
+    plt.close()
+
+def graphVariances(variances, scenario, figs_path, vmin, vmax, var='tasmean', graph_names = ['realization', 'sdm', 'r-sdm'], extension = 'pdf', extra='', color='hot_r', color_change = None):
+    numLevels = 10
+    continuousCMAP = plt.get_cmap(color)
+    discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
+    discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
+    if color != 'hot_r':
+        colors = list(discreteCMAPnoWhite.colors)
+        if color_change == None:
+            colors[4] = (1, 239/255, 239/255, 1.0) # Light red
+        else:
+            colors[color_change[0]] = color_change[1]
+        discreteCMAPnoWhite = ListedColormap(colors)
+    fig, axes = plt.subplots(nrows=3, ncols=1, figsize=(10, 15), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+    for i, graph_name in enumerate(graph_names):
+            
+        ax = axes[i] # [filas, columnas]
+        ax.coastlines(resolution='10m')
+        
+        dataToPlot = variances[scenario][graph_name][var]
+
+        im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
+                            dataToPlot,
+                            transform=ccrs.PlateCarree(),
+                            cmap=discreteCMAPnoWhite,
+                            vmin=vmin, vmax=vmax)
+        
+        ax.set_title(f'{graph_name.capitalize()}', fontsize=12)
+
+    cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])#fig.add_axes([0.91, 0.51, 0.04, 0.425])
+    cbar = plt.colorbar(im, cax, pad=0.05, orientation='vertical', spacing='uniform')#, extend='both', extendfrac='auto', )
+    cbar.ax.tick_params(labelsize=18)
+    fig_name = f'{figs_path}/variancesGraph_{scenario}{extra}.{extension}'
+    plt.suptitle(f'Metric {var.capitalize()} for {scenario.capitalize()} for 10 Trains', fontsize=14, fontweight='bold')
+    plt.subplots_adjust(top=0.9, bottom=0.05, wspace=0.002, hspace=0.002) #95 05
+    plt.savefig(fig_name, bbox_inches='tight')
+    plt.close()
+
+def __getMeans(dataset):
+
+    result = {'total': None, 'predictands': {}, 'numbers': {}, 'individual': {}}
+    temporal_total = []
+    temporal_numbered = {}
+    for predictand_name, predictand_sets in dataset.items(): 
+        temporal_predictand = []
+        for j, numbered_set in enumerate(predictand_sets.values()):
+            current_mean = numbered_set.mean(dim='time')
+            temporal_predictand.append(current_mean)
+            if j not in temporal_numbered:
+                temporal_numbered[j] = []
+            temporal_numbered[j].append(current_mean)
+            temporal_total.append(current_mean)
+            result['individual'][f"{predictand_name}-{j}"] = current_mean
+
+        predictand_concat = xr.concat(temporal_predictand, dim='member')
+        result['predictands'][predictand_name] = predictand_concat.mean('member')
+    for j, value in temporal_numbered.items():
+        numbered_concat = xr.concat(value, dim='member')
+        result['numbers'][j] = numbered_concat.mean('member')
+    total_concat = xr.concat(temporal_total, dim='member')
+    result['total'] = total_concat.mean('member')
+
+    return result
+
+def getVariance(dataset, var = 'tasmean'):
+
+    variances = {'total': 0, 'realization': 0, 'sdm': 0, 'r-sdm': 0}
+    means = __getMeans(dataset)
+    predictand_quantity = len(dataset)
+    number_quantity = len(next(iter(dataset.values())))
+
+    # RCM Calculation
+    for number, number_mean in means['numbers'].items():
+        current_value = np.square(number_mean - means['total'])
+        variances['realization'] += current_value 
+    variances['realization'] = variances['realization']/number_quantity
+
+    # GCM Calculation
+    for predictand, predictand_mean in means['predictands'].items():
+        current_value = np.square(predictand_mean - means['total'])
+        variances['sdm'] += current_value
+    variances['sdm'] = variances['sdm']/predictand_quantity
+
+    # RG Calculation
+    for predictand, predictand_mean in means['predictands'].items():
+        for number, number_mean in means['numbers'].items():
+            current_value = np.square(means['individual'][f"{predictand}-{number}"] - predictand_mean - number_mean + means['total'])
+            variances['r-sdm'] += current_value
+    variances['r-sdm'] = variances['r-sdm']/(number_quantity*predictand_quantity)
+
+    variances['total'] = variances['sdm'] + variances['realization'] + variances['r-sdm']
+
+    
+    return variances
