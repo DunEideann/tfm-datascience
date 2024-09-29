@@ -38,6 +38,18 @@ def checkUnitsTempt(data, var):
         data[var].data = data[var].data - 273.15
 
     return data
+
+def removeWrongData(data, var='tasmean', name='CHELSA'):
+
+    if name == 'CHELSA':
+        mask = (data[var] < -200).any(dim=['lat', 'lon'])
+        mask_computed = mask.compute()
+        wrong_days = data['time'].where(mask_computed, drop=True)
+        data_cleaned = data.drop_sel(time=wrong_days.values)
+    else:
+        data_cleaned = data
+        
+    return data_cleaned
     
 
 def getMetricsTemp(data, var = None, short = False):#, mask=None):
@@ -53,12 +65,13 @@ def getMetricsTemp(data, var = None, short = False):#, mask=None):
         var = 'tasmean'
     val_mean = data.mean(dim = 'time')
     val_mean_annual = data.resample(time = 'YE').mean()
-    val_st = data.std(dim = 'time')
-    val_99 = data.quantile(0.99, dim = 'time')
-    val_1 = data.quantile(0.01, dim='time')
-    over30 = data[var].where(data[var] >= 30).count(dim='time').to_dataset(name=var)
+    val_st = data.std(dim='time')
+    val_st_interannual = data.groupby('time.year').std(dim = 'time').mean(dim='year')#.resample(time = 'YE')
+    val_99 = data.groupby('time.year').quantile(0.99, dim = 'time').mean(dim='year')
+    val_1 = data.groupby('time.year').quantile(0.01, dim='time').mean(dim='year')
+    over30 = data[var].where(data[var] >= 30).resample(time='YS').count(dim='time').mean(dim='time').to_dataset(name=var)
     over30 = over30.where(over30 != 0, np.nan)
-    over40 = data[var].where(data[var] >= 40).count(dim='time').to_dataset(name=var)
+    over40 = data[var].where(data[var] >= 40).resample(time='YS').count(dim='time').mean(dim='time').to_dataset(name=var)
     over40 = over40.where(over40 != 0, np.nan)
     mean_max_mean = data.resample(time = 'YE').max(dim='time').mean(dim='time')
 
@@ -76,6 +89,7 @@ def getMetricsTemp(data, var = None, short = False):#, mask=None):
         '99quantile': val_99,
         '1quantile': val_1,
         'std': val_st,
+        'std_annual' : val_st_interannual,
         'trend': val_mean_annual,
         'over30': over30,
         'over40': over40,
@@ -968,6 +982,7 @@ def getPredictand(data_path, name, var, complete_path = None):
 
     predictand = checkIndex(predictand)
     predictand = checkUnitsTempt(predictand, var)
+    predictand = removeWrongData(predictand, var, name)
     predictand = predictand.assign_coords({'time': predictand.indexes['time'].normalize()})
 
     return predictand
@@ -1241,19 +1256,16 @@ def graphsBaseGCM(objective, reference, save_path, color_extended=False):
             else:
                 data = diff[key]['tas']
             
-            print(f"DATA SHAPE: {data.shape}, metric: {key}")
             lon = data.coords['lon'].values
             lat = data.coords['lat'].values
             data = data.values.reshape(data.shape[0], data.shape[1])
-            if j == 0 and i == 0:
-                print(data)
             # Obtener el subgráfico actual
             masked_data = np.ma.masked_invalid(data)
             v_min = np.nanmin(data) if not np.isnan(np.nanmin(data)) else 0
             v_max = np.nanmax(data) if not np.isnan(np.nanmax(data)) else 5
             if (v_max-v_min) == 0:
                 v_max = v_min +1
-            print(f"Min: {v_min}, MAX: {v_max}")
+
             bounds = np.linspace(v_min, v_max, cmap.N + 1)
             bounds = np.round(bounds, 2)
             ax = axes[i, j]
@@ -1312,9 +1324,9 @@ def getDataset(datasets, metric, var=None):
 
     return new_dataset
 
-def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, period, extension = 'pdf', noWhite = False):
+def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, period, extension='pdf', noWhite=False, colorModifier=[], numLevels=10, ticksX=6):
            
-    numLevels = 10
+
     continuousCMAP = plt.get_cmap('hot_r')
     if noWhite == False:
         discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
@@ -1322,6 +1334,13 @@ def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, pe
         discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
 
     discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
+
+    colors = list(discreteCMAP.colors)
+    for newColor in colorModifier:
+        colors[newColor[0]] = newColor[1]
+    discreteCMAP = ListedColormap(colors)
+    if vmin[-1] < 1:
+        discreteCMAPnoWhite = ListedColormap(colors)
 
     start_time = time()
     #for period, period_data in datasets_metrics.items():
@@ -1353,7 +1372,7 @@ def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, pe
             if i == 0:
                 cax = fig.add_axes([0.125, 0.056 + (4*0.18) - (j * 0.18), 0.776, 0.02]) #DIST DESDE IZQUIERDA/DIST DESDE ABAJO/LARDO HORI/LARGO/VERT
                 cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform', orientation='horizontal')#, extend='both', extendfrac='auto', )
-                cbar.set_ticks(np.linspace(vmin[j], vmax[j], 6))
+                cbar.set_ticks(np.linspace(vmin[j], vmax[j], ticksX))
                 cbar.ax.tick_params(labelsize=16)
 
     plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
@@ -1399,7 +1418,7 @@ def efemerideGraphMultiplie(datasets_metrics_1, datasets_metrics_2, figs_path, v
         #Cambiar a un diccionario TODO
         j = counter//nCols
         i = counter%nCols
-        print(f"counter:{counter}, i:{i}, j:{j}")
+
         ax = axes[j, i]
 
         ax.coastlines(resolution='10m')
@@ -1479,11 +1498,6 @@ def __getSimilarity(set1, set2, sigma_number = 1, grid_selection = None):
     is_nan = np.isnan(set1['mean']) | np.isnan(set2['mean'])
     point_similarity = (set2['mean']<=validRange[1]) & (set2['mean']>=validRange[0])
     point_similarity = point_similarity.where(~is_nan, np.nan).to_array()
-    # if grid_selection != None:
-    #     print(f"Mean: {set2['mean'].sel(lat=grid_selection[0], lon=grid_selection[1])['tasmean'].item()}")
-    #     print(f"Izquierdo: {validRange[0].sel(lat=grid_selection[0], lon=grid_selection[1])['tasmean'].item()}")
-    #     print(f"Derecho: {validRange[1].sel(lat=grid_selection[0], lon=grid_selection[1])['tasmean'].item()}")
-    #     print(f"Similarity: {point_similarity.sel(lat=grid_selection[0], lon=grid_selection[1])}")
 
     return point_similarity
 
@@ -1669,7 +1683,13 @@ def graphMultipleTrains(dataset_metric, figs_path, vmin = 10, vmax = 30, var = '
     plt.savefig(fig_name, bbox_inches='tight')
     plt.close()
 
-def graphVariances(variances, scenario, figs_path, vmin, vmax, var='tasmean', graph_names = ['realization', 'sdm', 'r-sdm'], extension = 'pdf', extra='', color='hot_r', color_change = None):
+def __toLog(dataset, base):
+    result = np.log(dataset + 1)/np.log(base) if base != 'ln' else np.log(dataset + 1)
+    # result = np.log(dataset)/np.log(base) if base != 'ln' else np.log(dataset)
+    # result += 1
+    return result
+
+def graphVariances(variances, scenario, figs_path, vmin, vmax, var='tasmean', graph_names = ['realization', 'sdm', 'r-sdm'], extension = 'pdf', extra='', color='hot_r', color_change = None, logBase=None):
     numLevels = 10
     continuousCMAP = plt.get_cmap(color)
     discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
@@ -1687,7 +1707,7 @@ def graphVariances(variances, scenario, figs_path, vmin, vmax, var='tasmean', gr
         ax = axes[i] # [filas, columnas]
         ax.coastlines(resolution='10m')
         
-        dataToPlot = variances[scenario][graph_name][var]
+        dataToPlot = variances[scenario][graph_name][var] if logBase == None else __toLog(variances[scenario][graph_name][var], logBase)
 
         im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
                             dataToPlot,
@@ -1700,21 +1720,28 @@ def graphVariances(variances, scenario, figs_path, vmin, vmax, var='tasmean', gr
     cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])#fig.add_axes([0.91, 0.51, 0.04, 0.425])
     cbar = plt.colorbar(im, cax, pad=0.05, orientation='vertical', spacing='uniform')#, extend='both', extendfrac='auto', )
     cbar.ax.tick_params(labelsize=18)
-    fig_name = f'{figs_path}/variancesGraph_{scenario}{extra}.{extension}'
-    plt.suptitle(f'Metric {var.capitalize()} for {scenario.capitalize()} for 10 Trains', fontsize=14, fontweight='bold')
+    if logBase == None:
+        fig_name = f'{figs_path}/variancesGraph_{scenario}{extra}.{extension}'
+    else:
+        fig_name = f'{figs_path}/variancesGraph_{scenario}{extra}_logBase{logBase}.{extension}'
+    plt.suptitle(f'Variances for {scenario.capitalize()}', fontsize=14, fontweight='bold')
     plt.subplots_adjust(top=0.9, bottom=0.05, wspace=0.002, hspace=0.002) #95 05
     plt.savefig(fig_name, bbox_inches='tight')
     plt.close()
 
-def __getMeans(dataset):
+def __getMeans(data1, data2 = None):
 
     result = {'total': None, 'predictands': {}, 'numbers': {}, 'individual': {}}
     temporal_total = []
     temporal_numbered = {}
-    for predictand_name, predictand_sets in dataset.items(): 
+    for predictand_name, predictand_sets in data1.items(): 
         temporal_predictand = []
-        for j, numbered_set in enumerate(predictand_sets.values()):
+        for j, (numbered_name, numbered_set) in enumerate(predictand_sets.items()):
             current_mean = numbered_set.mean(dim='time')
+            if data2 != None:
+                temporal_mean = data2[predictand_name][numbered_name].mean(dim='time')
+                current_mean = current_mean - temporal_mean
+                
             temporal_predictand.append(current_mean)
             if j not in temporal_numbered:
                 temporal_numbered[j] = []
@@ -1732,12 +1759,47 @@ def __getMeans(dataset):
 
     return result
 
-def getVariance(dataset, var = 'tasmean'):
+def __getQuantileMeans(data1, data2=None, quantile = 0.99):
+
+    result = {'total': None, 'predictands': {}, 'numbers': {}, 'individual': {}}
+    temporal_total = []
+    temporal_numbered = {}
+    for predictand_name, predictand_sets in data1.items(): 
+        temporal_predictand = []
+        for j, (numbered_name, numbered_set) in enumerate(predictand_sets.items()):
+            # current_mean = numbered_set.quantile(quantile, dim='time') # QUANTILE TOMADO EN EL TOTAL DE DATOS
+            current_mean = numbered_set.resample(time = 'YE').quantile(0.99, dim = 'time').mean(dim='time')
+            if data2 != None:
+                temporal_mean = data2[predictand_name][numbered_name].resample(time = 'YE').quantile(0.99, dim = 'time').mean(dim='time')
+                current_mean = current_mean - temporal_mean
+            temporal_predictand.append(current_mean)
+            if j not in temporal_numbered:
+                temporal_numbered[j] = []
+            temporal_numbered[j].append(current_mean)
+            temporal_total.append(current_mean)
+            result['individual'][f"{predictand_name}-{j}"] = current_mean
+
+        predictand_concat = xr.concat(temporal_predictand, dim='member')
+        result['predictands'][predictand_name] = predictand_concat.mean('member')
+    for j, value in temporal_numbered.items():
+        numbered_concat = xr.concat(value, dim='member')
+        result['numbers'][j] = numbered_concat.mean('member')
+    total_concat = xr.concat(temporal_total, dim='member')
+    result['total'] = total_concat.mean('member')
+
+    return result
+
+def getVariance(dataset1, dataset2 = None, var = 'tasmean', metric = 'mean', percentage=False):
 
     variances = {'total': 0, 'realization': 0, 'sdm': 0, 'r-sdm': 0}
-    means = __getMeans(dataset)
-    predictand_quantity = len(dataset)
-    number_quantity = len(next(iter(dataset.values())))
+    if metric == 'mean':
+        means = __getMeans(data1=dataset1, data2=dataset2) if dataset2 != None else __getMeans(data1=dataset1)
+    elif metric=='99quantile':
+        means = __getQuantileMeans(data1=dataset1, data2=dataset2, quantile=0.99) if dataset2 != None else __getQuantileMeans(data1=dataset1, quantile=0.99)
+    elif metric == '1quantile':
+        means = __getQuantileMeans(data1=dataset1, data2=dataset2, quantile=0.01) if dataset2 != None else __getQuantileMeans(data1=dataset1, quantile=0.01)
+    predictand_quantity = len(dataset1)
+    number_quantity = len(next(iter(dataset1.values())))
 
     # RCM Calculation
     for number, number_mean in means['numbers'].items():
@@ -1759,6 +1821,11 @@ def getVariance(dataset, var = 'tasmean'):
     variances['r-sdm'] = variances['r-sdm']/(number_quantity*predictand_quantity)
 
     variances['total'] = variances['sdm'] + variances['realization'] + variances['r-sdm']
+    if percentage:
+        variances['sdm'] = variances['sdm']*(100/variances['total'])
+        variances['realization'] = variances['realization']*(100/variances['total'])
+        variances['r-sdm'] = variances['r-sdm']*(100/variances['total'])
+        variances['total'] = variances['sdm'] + variances['realization'] + variances['r-sdm']
 
     
     return variances

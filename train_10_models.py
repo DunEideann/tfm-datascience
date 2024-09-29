@@ -23,10 +23,10 @@ PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/'
 VARIABLES_TO_DROP = ['lon_bnds', 'lat_bnds', 'crs']
 LAT_SLICE = slice(33.5, 48.6)
 LON_SLICE = slice(-10.5, 4.6)
-#PREDICTAND_NAME = sys.argv[1]
-#MODEL_NUMBER = sys.argv[2]
-PREDICTAND_NAME = 'pti-grid' 
-MODEL_NUMBER = 1
+PREDICTAND_NAME = sys.argv[1]
+MODEL_NUMBER = sys.argv[2]
+# PREDICTAND_NAME = 'pti-grid' 
+# MODEL_NUMBER = 1
 #PREDICTAND_NAME = 'E-OBS' PREDICTAND_NAME = 'AEMET_0.25deg' PREDICTAND_NAME = 'Iberia01_v1.0' 
 # PREDICTAND_NAME = 'pti-grid' PREDICTAND_NAME = 'CHELSA' PREDICTAND_NAME = 'ERA5-Land0.25deg'
 
@@ -73,6 +73,7 @@ predictand = utils.checkCorrectData(predictand) # Transform coordinates and dime
 
 predictand = utils.checkIndex(predictand)
 predictand = utils.checkUnitsTempt(predictand, 'tasmean')
+predictand = utils.removeWrongData(predictand, 'tasmean')
 predictors = predictors.reindex(lat=list(reversed(predictors.lat))) # Reordenamos la latitud del predictor para que tenga el mismo orden del predictando
 
 #Preparamos datos para entrenamiento

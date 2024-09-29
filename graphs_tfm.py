@@ -47,6 +47,7 @@ whole_obs_metrics = {'annual': {}, 'spring': {}, 'summer': {}, 'autumn': {}, 'wi
 for predictand_name in predictands:
 
     modelName = f'DeepESD_tas_{predictand_name}' 
+    print(predictand_name)
     obs[predictand_name] = utils.getPredictand(DATA_PATH_PREDICTANDS_SAVE, predictand_name, 'tasmean')
     obs[predictand_name] = obs[predictand_name].sel(time=slice(*(yearsTrain[0], yearsTest[1])))
     obs[predictand_name] = utils.maskData(
@@ -73,14 +74,12 @@ for predictand_name in predictands:
         whole_obs_metrics[season_name][predictand_name] = utils.getMetricsTemp(whole_obs[season_name][predictand_name], short = True)
 
 
-
-
 # FIGURA 3
 fig_num = 3
 for period, data_metrics in whole_obs_metrics.items():
-    utils.metricsGraph(data_metrics, figs_path=FIGS_PATH, vmin=[0, 0, -5, 0, 1], vmax=[35, 40, 15, 15, 501], pred_type='observation_whole', fig_num = fig_num, period = period, extension='png')
-    utils.metricsGraph(test_obs_metrics[period], figs_path=FIGS_PATH, vmin=[0, 0, -5, 0, 1], vmax=[35, 40, 15, 15, 501], pred_type='observation_test', fig_num = fig_num, period = period, extension='png')
-    utils.metricsGraph(train_obs_metrics[period], figs_path=FIGS_PATH, vmin=[0, 0, -5, 0, 1], vmax=[35, 40, 15, 15, 501], pred_type='observation_train', fig_num = fig_num, period = period, extension='png')
+    utils.metricsGraph(data_metrics, figs_path=FIGS_PATH, vmin=[0, 0, -5, 0, 1], vmax=[35, 40, 15, 15, 31], pred_type='observation_whole', fig_num = fig_num, period = period, extension='png')
+    utils.metricsGraph(test_obs_metrics[period], figs_path=FIGS_PATH, vmin=[0, 0, -5, 0, 1], vmax=[35, 40, 15, 15, 31], pred_type='observation_test', fig_num = fig_num, period = period, extension='png')
+    utils.metricsGraph(train_obs_metrics[period], figs_path=FIGS_PATH, vmin=[0, 0, -5, 0, 1], vmax=[35, 40, 15, 15, 31], pred_type='observation_train', fig_num = fig_num, period = period, extension='png')
     fig_num += Decimal('0.1')
 
 # DATOS PREDICCION
@@ -130,9 +129,9 @@ for predictand_name in predictands:
 # FIGURA 5
 fig_num = 5
 for period, data_metrics in whole_metrics.items():
-    utils.metricsGraph(data_metrics, figs_path=FIGS_PATH, vmin=[0, 0, -5, 0, 1], vmax=[35, 40, 15, 15, 501], pred_type='prediction_whole', fig_num = fig_num, period = period, extension='png')
-    utils.metricsGraph(test_metrics[period], figs_path=FIGS_PATH, vmin=[0, 0, -5, 0, 1], vmax=[35, 40, 15, 15, 501], pred_type='prediction_test', fig_num = fig_num, period = period, extension='png')
-    utils.metricsGraph(train_metrics[period], figs_path=FIGS_PATH, vmin=[0, 0, -5, 0, 1], vmax=[35, 40, 15, 15, 501], pred_type='prediction_train', fig_num = fig_num, period = period, extension='png')
+    utils.metricsGraph(data_metrics, figs_path=FIGS_PATH, vmin=[0, 0, -5, 0, 1], vmax=[35, 40, 15, 15, 21], pred_type='prediction_whole', fig_num = fig_num, period = period, extension='png')
+    utils.metricsGraph(test_metrics[period], figs_path=FIGS_PATH, vmin=[0, 0, -5, 0, 1], vmax=[35, 40, 15, 15, 21], pred_type='prediction_test', fig_num = fig_num, period = period, extension='png')
+    utils.metricsGraph(train_metrics[period], figs_path=FIGS_PATH, vmin=[0, 0, -5, 0, 1], vmax=[35, 40, 15, 15, 21], pred_type='prediction_train', fig_num = fig_num, period = period, extension='png')
     fig_num += Decimal('0.1')
 
 # DATOS DIFERENCIA TEST PRED - OBS
@@ -140,21 +139,22 @@ diff_test_metrics = {'annual': {}, 'spring': {}, 'summer': {}, 'autumn': {}, 'wi
 
 for predictand_name in predictands:
     diff_test_metrics['annual'][predictand_name] = {
-            key: test_metrics['annual'][predictand_name][key]-train_obs_metrics['annual'][predictand_name][key] 
+            key: test_metrics['annual'][predictand_name][key]-test_obs_metrics['annual'][predictand_name][key] 
                 if key != 'std' 
-                else test_metrics['annual'][predictand_name][key]/train_obs_metrics['annual'][predictand_name][key] 
+                else test_metrics['annual'][predictand_name][key]/test_obs_metrics['annual'][predictand_name][key] 
                 for key in metrics}
     for season_name, months in seasons.items():
         diff_test_metrics[season_name][predictand_name] = {
-            key: test_metrics[season_name][predictand_name][key]-train_obs_metrics[season_name][predictand_name][key] 
+            key: test_metrics[season_name][predictand_name][key]-test_obs_metrics[season_name][predictand_name][key] 
                 if key != 'std' 
-                else test_metrics[season_name][predictand_name][key]/train_obs_metrics[season_name][predictand_name][key] 
+                else test_metrics[season_name][predictand_name][key]/test_obs_metrics[season_name][predictand_name][key] 
                 for key in metrics}
 
 # # FIGURA 5
+colorModifier = [(0, 'darkblue'), (1, 'mediumblue'), (2, 'royalblue'), (3, 'cornflowerblue'), (4, 'lightsteelblue'), (5, 'mistyrose'), (6, 'lightcoral'), (7, 'indianred'), (8, 'firebrick'), (9, 'darkred')]
 fig_num = 5
 for period, data_metrics in diff_test_metrics.items():
-    utils.metricsGraph(data_metrics, figs_path=FIGS_PATH, vmin=[-1, -1, -1, 0.5, 1], vmax=[1.5, 1.5, 1.5, 1.25, 11], pred_type='diff_test', fig_num = fig_num, period = period, extension='png', noWhite=True)
+    utils.metricsGraph(data_metrics, figs_path=FIGS_PATH, vmin=[-1.5, -1.5, -1.5, 0.5, -35], vmax=[1.5, 1.5, 1.5, 1.5, 35], pred_type='diff_test', fig_num = fig_num, period = period, extension='png', noWhite=True, colorModifier=colorModifier, ticksX=11)
     fig_num += Decimal('0.1')
 
 
@@ -237,7 +237,7 @@ for predictand_name in predictands:
 
 fig_num = 7
 for period, data_metrics in long_metrics.items(): 
-    utils.metricsGraph(data_metrics, figs_path=FIGS_PATH, vmin=[0, 0, -10, 3, 1], vmax=[40, 50, 20, 13, 3001], pred_type='ssp585', fig_num = fig_num, period = period, extension='png')
+    utils.metricsGraph(data_metrics, figs_path=FIGS_PATH, vmin=[0, 0, -10, 3, 1], vmax=[40, 50, 20, 13, 101], pred_type='ssp585', fig_num = fig_num, period = period, extension='png')
     fig_num += Decimal('0.1')
 
 # FIGURA 8:
@@ -263,7 +263,7 @@ for predictand_name in predictands:
 
 fig_num = 8
 for period, data_metrics in diff_metrics.items(): 
-    utils.metricsGraph(data_metrics, figs_path=FIGS_PATH, vmin=[1, 2, 0, 0.6, 1], vmax=[11, 17, 10, 1.6, 3001], pred_type='climate_signal', fig_num = fig_num, period = period, extension='png')
+    utils.metricsGraph(data_metrics, figs_path=FIGS_PATH, vmin=[1, 2, 0, 0.6, 1], vmax=[11, 17, 10, 1.6, 201], pred_type='climate_signal', fig_num = fig_num, period = period, extension='png')
     fig_num += Decimal('0.1')
 
 
