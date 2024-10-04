@@ -1689,7 +1689,7 @@ def __toLog(dataset, base):
     # result += 1
     return result
 
-def graphVariances(variances, scenario, figs_path, vmin, vmax, var='tasmean', graph_names = ['realization', 'sdm', 'r-sdm'], extension = 'pdf', extra='', color='hot_r', color_change = None, logBase=None):
+def graphVariances(variances, scenario, figs_path, vmin, vmax, var='tasmean', graph_names = ['realization', 'sdm', 'r-sdm'], extension = 'pdf', extra='', extra_title='', color='hot_r', color_change = None, logBase=None):
     numLevels = 10
     continuousCMAP = plt.get_cmap(color)
     discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
@@ -1724,14 +1724,54 @@ def graphVariances(variances, scenario, figs_path, vmin, vmax, var='tasmean', gr
         fig_name = f'{figs_path}/variancesGraph_{scenario}{extra}.{extension}'
     else:
         fig_name = f'{figs_path}/variancesGraph_{scenario}{extra}_logBase{logBase}.{extension}'
-    plt.suptitle(f'Variances for {scenario.capitalize()}', fontsize=14, fontweight='bold')
+    plt.suptitle(f'Variances for {scenario.capitalize()} {extra_title}', fontsize=14, fontweight='bold')
+    plt.subplots_adjust(top=0.9, bottom=0.05, wspace=0.002, hspace=0.002) #95 05
+    plt.savefig(fig_name, bbox_inches='tight')
+    plt.close()
+
+def graphVariancesMeanSd(variances, scenario, figs_path, vmin=0, vmax=1, var='tasmean', graph_names = ['mean_normalized', 'sd_normalized'], extension = 'pdf', extra='', extra_title='', color='Reds', color_change = None, logBase=None):
+    numLevels = 10
+    continuousCMAP = plt.get_cmap(color)
+    discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
+    discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
+    if color != 'Reds':
+        colors = list(discreteCMAPnoWhite.colors)
+        if color_change == None:
+            colors[4] = (1, 239/255, 239/255, 1.0) # Light red
+        else:
+            colors[color_change[0]] = color_change[1]
+        discreteCMAPnoWhite = ListedColormap(colors)
+    fig, axes = plt.subplots(nrows=len(graph_names), ncols=1, figsize=(10, 15), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+    for i, graph_name in enumerate(graph_names):
+            
+        ax = axes[i] # [filas, columnas]
+        ax.coastlines(resolution='10m')
+        
+        dataToPlot = variances[scenario][graph_name][var] if logBase == None else __toLog(variances[scenario][graph_name][var], logBase)
+
+        im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
+                            dataToPlot,
+                            transform=ccrs.PlateCarree(),
+                            cmap=discreteCMAPnoWhite,
+                            vmin=vmin, vmax=vmax)
+        
+        ax.set_title(f'{graph_name.capitalize()}', fontsize=12)
+
+    cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])#fig.add_axes([0.91, 0.51, 0.04, 0.425])
+    cbar = plt.colorbar(im, cax, pad=0.05, orientation='vertical', spacing='uniform')#, extend='both', extendfrac='auto', )
+    cbar.ax.tick_params(labelsize=18)
+    if logBase == None:
+        fig_name = f'{figs_path}/meanSd_{scenario}{extra}.{extension}'
+    else:
+        fig_name = f'{figs_path}/meanSd{scenario}{extra}_logBase{logBase}.{extension}'
+    plt.suptitle(f'Variances for {scenario.capitalize()} {extra_title}', fontsize=14, fontweight='bold')
     plt.subplots_adjust(top=0.9, bottom=0.05, wspace=0.002, hspace=0.002) #95 05
     plt.savefig(fig_name, bbox_inches='tight')
     plt.close()
 
 def __getMeans(data1, data2 = None):
 
-    result = {'total': None, 'predictands': {}, 'numbers': {}, 'individual': {}}
+    result = {'total': None, 'predictands': {}, 'numbers': {}, 'individual': {}, 'sd': None}
     temporal_total = []
     temporal_numbered = {}
     for predictand_name, predictand_sets in data1.items(): 
@@ -1756,21 +1796,22 @@ def __getMeans(data1, data2 = None):
         result['numbers'][j] = numbered_concat.mean('member')
     total_concat = xr.concat(temporal_total, dim='member')
     result['total'] = total_concat.mean('member')
+    result['sd'] = total_concat.std('member')
 
     return result
 
 def __getQuantileMeans(data1, data2=None, quantile = 0.99):
 
-    result = {'total': None, 'predictands': {}, 'numbers': {}, 'individual': {}}
+    result = {'total': None, 'predictands': {}, 'numbers': {}, 'individual': {}, 'sd': None}
     temporal_total = []
     temporal_numbered = {}
     for predictand_name, predictand_sets in data1.items(): 
         temporal_predictand = []
         for j, (numbered_name, numbered_set) in enumerate(predictand_sets.items()):
             # current_mean = numbered_set.quantile(quantile, dim='time') # QUANTILE TOMADO EN EL TOTAL DE DATOS
-            current_mean = numbered_set.resample(time = 'YE').quantile(0.99, dim = 'time').mean(dim='time')
+            current_mean = numbered_set.resample(time = 'YE').quantile(quantile, dim = 'time').mean(dim='time')
             if data2 != None:
-                temporal_mean = data2[predictand_name][numbered_name].resample(time = 'YE').quantile(0.99, dim = 'time').mean(dim='time')
+                temporal_mean = data2[predictand_name][numbered_name].resample(time = 'YE').quantile(quantile, dim = 'time').mean(dim='time')
                 current_mean = current_mean - temporal_mean
             temporal_predictand.append(current_mean)
             if j not in temporal_numbered:
@@ -1786,12 +1827,13 @@ def __getQuantileMeans(data1, data2=None, quantile = 0.99):
         result['numbers'][j] = numbered_concat.mean('member')
     total_concat = xr.concat(temporal_total, dim='member')
     result['total'] = total_concat.mean('member')
+    result['sd'] = total_concat.std('member')
 
     return result
 
 def getVariance(dataset1, dataset2 = None, var = 'tasmean', metric = 'mean', percentage=False):
 
-    variances = {'total': 0, 'realization': 0, 'sdm': 0, 'r-sdm': 0}
+    variances = {'total': 0, 'realization': 0, 'sdm': 0, 'r-sdm': 0, 'mean_normalized': 0, 'sd_normalized': 0}
     if metric == 'mean':
         means = __getMeans(data1=dataset1, data2=dataset2) if dataset2 != None else __getMeans(data1=dataset1)
     elif metric=='99quantile':
@@ -1826,6 +1868,12 @@ def getVariance(dataset1, dataset2 = None, var = 'tasmean', metric = 'mean', per
         variances['realization'] = variances['realization']*(100/variances['total'])
         variances['r-sdm'] = variances['r-sdm']*(100/variances['total'])
         variances['total'] = variances['sdm'] + variances['realization'] + variances['r-sdm']
+        max_mean = means['total'].max()
+        variances['mean_normalized'] = means['total']/max_mean
+        variances['sd_normalized'] = means['sd']/max_mean
+    else:
+        variances['mean_normalized'] = means['total']
+        variances['sd_normalized'] = means['sd']
 
     
     return variances

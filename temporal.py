@@ -36,13 +36,24 @@ for statistic in statistics:
     for predictands_num in numbers:
         images_cc = []
         images_ssp = []
+        images_mean_sd_cc = []
+        images_mean_sd = []
         for period in periods:
-            image_name_ssp = f'variancesGraph_ssp585{period}_{statistic}_{predictands_num}'
+            opt = 'ssp585' if period!='test' else ''
+            opt2 = '_' if period!='test' else ''
+            image_name_ssp = f'{FIGS_PATH}/variancesGraph_{opt}{period}{opt2}{statistic}_Percentage_{predictands_num}.png'
             images_ssp.append(image_name_ssp)
+            image_mean_sd =  f'{FIGS_PATH}/meanSd_{opt}{period}{opt2}{statistic}_Percentage_{predictands_num}.png'
+            images_mean_sd.append(image_mean_sd)
 
         for cc_period in ccsignal_periods:
-            image_name_cc = f'variancesGraph_ccsignal{statistic}_Percentage_{predictands_num}_{cc_period}'
+            image_name_cc = f'{FIGS_PATH}/variancesGraph_ccsignal{statistic}_Percentage_{predictands_num}_{cc_period}.png'
             images_cc.append(image_name_cc)
+            image_mean_sd_cc =  f'{FIGS_PATH}/meanSd_ccsignal{statistic}_Percentage_{predictands_num}_{cc_period}.png'
+            images_mean_sd_cc.append(image_mean_sd_cc)
 
-        imageCombiner(images_path=images_ssp, extra=f'{statistic}_{predictands_num}')
-        imageCombiner(images_path=images_cc, extra=f'{statistic}_{predictands_num}')
+
+        imageCombiner(images_path=images_ssp, extra=f'prediction_{statistic}_{predictands_num}')
+        imageCombiner(images_path=images_cc, extra=f'ccsignal_{statistic}_{predictands_num}')
+        imageCombiner(images_path=images_mean_sd, extra=f'mean_sd_{statistic}_{predictands_num}')
+        imageCombiner(images_path=images_mean_sd_cc, extra=f'mean_sd_ccsignal_{statistic}_{predictands_num}')
