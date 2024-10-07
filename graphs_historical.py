@@ -8,10 +8,11 @@ FIGS_PATH = '/lustre/gmeteo/WORK/reyess/figs/similarity'
 PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/GCM/AEMET/'
 PREDS_PATH_TRAIN = '/lustre/gmeteo/WORK/reyess/preds/'
 DATA_PATH_PREDICTANDS_SAVE = '/lustre/gmeteo/WORK/reyess/data/predictand/'
-#PERIOD = int(sys.argv[1])
-#PREDICTANDS_SIZE = int(sys.argv[2])
-PREDICTANDS_SIZE = 6
-PERIOD = 3
+PERIOD = int(sys.argv[1])
+PREDICTANDS_SIZE = int(sys.argv[2])
+ENSEMBLE_QUANTITY = int(sys.argv[3])
+# PREDICTANDS_SIZE = 6
+# PERIOD = 3
 SCENARIO = 3
 PREDICTOR = 'EC-Earth3-Veg'
 
@@ -77,28 +78,24 @@ for predictand_name in predictands:
                 secondGrid = obs_temp)
     
     #PREDICTED DATA:
-    gcm_preds = {}
-    hist_gcm = {}
     hist_gcm_mean = {}
-    hist_gcm_99 = {}
     temporal_mean = []
-    temporal_99 = []
-    predictand_numbered = [f"{predictand_name}_{i}" for i in range(1, 11)]
+    predictand_numbered = [f"{predictand_name}_{i}" for i in range(1, ENSEMBLE_QUANTITY+1)]
     for predictand_number in predictand_numbered:
         modelName = f'DeepESD_tas_{predictand_number}' 
         print(modelName)
         gcms_futures = []
         for future in futures:
             gcms_futures.append(xr.open_dataset(f'{PREDS_PATH}/predGCM_{modelName}_{gcm_name}_{main_scenerio}_{future[0]}-{future[1]}.nc'))
-        gcm_preds[predictand_number] = xr.merge(gcms_futures)
-        hist_gcm[predictand_number] = xr.merge([obs2, gcm_preds[predictand_number]])
-        hist_gcm_mean[predictand_number] = hist_gcm[predictand_number].resample(time = 'YE').mean()
-        hist_gcm_mean[predictand_number] = hist_gcm_mean[predictand_number].mean(dim=['lat', 'lon'])#resample(time='1Y')
+        gcm_preds = xr.merge(gcms_futures)
+        temp_gcm = xr.merge([obs2, gcm_preds])
+        temp_gcm_mean = temp_gcm.resample(time = 'YE').mean()
+        temp_gcm_mean = temp_gcm_mean.mean(dim=['lat', 'lon'])#resample(time='1Y')
         
-        temporal_mean.append(hist_gcm_mean[predictand_number])
+        temporal_mean.append(temp_gcm_mean)
 
     temporal_mean_concat = xr.concat(temporal_mean, dim='member')
-    hist_gcm_mean['median'] = temporal_mean_concat.median('member')
+    hist_gcm_mean['mean'] = temporal_mean_concat.mean('member')
     hist_gcm_mean['max'] = temporal_mean_concat.max('member')
     hist_gcm_mean['min'] = temporal_mean_concat.min('member')
 
@@ -108,9 +105,9 @@ for predictand_name in predictands:
 
     # Iterar sobre cada dataset en el diccionario
     # Extraer los valores de 'tasmean'
-    tasmean_values = hist_gcm_mean['median']['tasmean'].values
+    tasmean_values = hist_gcm_mean['mean']['tasmean'].values
     # Extraer los años de la coordenada 'time'
-    years = hist_gcm_mean['median']['time'].dt.year
+    years = hist_gcm_mean['mean']['time'].dt.year
 
     # Graficar los valores de 'tasmean' contra los años
     plt.plot(years, tasmean_values, label=predictand_name)
@@ -159,23 +156,19 @@ for predictand_name in predictands:
     #             secondGrid = obs_temp)
     
     #PREDICTED DATA:
-    gcm_preds = {}
-    hist_gcm = {}
     hist_gcm_mean = {}
-    hist_gcm_99 = {}
     temporal_mean = []
-    temporal_99 = []
-    predictand_numbered = [f"{predictand_name}_{i}" for i in range(1, 11)]
+    predictand_numbered = [f"{predictand_name}_{i}" for i in range(1, ENSEMBLE_QUANTITY+1)]
     for predictand_number in predictand_numbered:
         modelName = f'DeepESD_tas_{predictand_number}' 
         print(modelName)
         gcms_futures = []
         for future in futures:
             gcms_futures.append(xr.open_dataset(f'{PREDS_PATH}/predGCM_{modelName}_{gcm_name}_{main_scenerio}_{future[0]}-{future[1]}.nc'))
-        gcm_preds[predictand_number] = xr.merge(gcms_futures)
+        gcm_preds = xr.merge(gcms_futures)
         # hist_gcm = xr.merge([obs2, gcm_preds])
-        hist_gcm[predictand_number] = gcm_preds[predictand_number]
-        hist_gcm_mean[predictand_number] = hist_gcm[predictand_number].resample(time = 'YE').mean()
+        hist_gcm = gcm_preds
+        hist_gcm_mean[predictand_number] = hist_gcm.resample(time = 'YE').mean()
         hist_gcm_mean[predictand_number] = hist_gcm_mean[predictand_number].mean(dim=['lat', 'lon'])#resample(time='1Y')
         
         temporal_mean.append(hist_gcm_mean[predictand_number])
@@ -249,23 +242,19 @@ for predictand_name in predictands:
     gcms_futures = []
     
     #PREDICTED DATA:
-    gcm_preds = {}
-    hist_gcm = {}
-    hist_gcm_mean = {}
     hist_gcm_99 = {}
-    temporal_mean = []
     temporal_99 = []
-    predictand_numbered = [f"{predictand_name}_{i}" for i in range(1, 11)]
+    predictand_numbered = [f"{predictand_name}_{i}" for i in range(1, ENSEMBLE_QUANTITY+1)]
     for predictand_number in predictand_numbered:
         modelName = f'DeepESD_tas_{predictand_number}' 
         print(modelName)
         gcms_futures = []
         for future in futures:
             gcms_futures.append(xr.open_dataset(f'{PREDS_PATH}/predGCM_{modelName}_{gcm_name}_{main_scenerio}_{future[0]}-{future[1]}.nc'))
-        gcm_preds[predictand_number] = xr.merge(gcms_futures)
+        gcm_preds = xr.merge(gcms_futures)
         #hist_gcm = xr.merge([obs2, gcm_preds])
-        hist_gcm[predictand_number] = gcm_preds[predictand_number]
-        hist_gcm_99[predictand_number] = hist_gcm[predictand_number].resample(time = 'YE').quantile(0.99, dim = 'time')
+        hist_gcm = gcm_preds
+        hist_gcm_99[predictand_number] = hist_gcm.resample(time = 'YE').quantile(0.99, dim = 'time')
         hist_gcm_99[predictand_number] = hist_gcm_99[predictand_number].mean(dim=['lat', 'lon'])
         
 
@@ -278,9 +267,6 @@ for predictand_name in predictands:
 
     # CLEANING MEMORY
     del gcms_futures, temporal_99, temporal_99_concat, gcm_preds, hist_gcm
-
-
-
 
 
     ax = axes[plot_idx]  # Selecciona el subplot actual
@@ -342,21 +328,17 @@ for predictand_name in predictands:
 
    
     #PREDICTED DATA:
-    gcm_preds = {}
-    whole_preds = {}
     whole_mean = {}
-    whole_99 = {}
     temporal_mean = []
-    temporal_99 = []
-    predictand_numbered = [f"{predictand_name}_{i}" for i in range(1, 11)]
+    predictand_numbered = [f"{predictand_name}_{i}" for i in range(1, ENSEMBLE_QUANTITY+1)]
     for predictand_number in predictand_numbered:
         modelName = f'DeepESD_tas_{predictand_number}' 
         print(modelName)
         preds_test = xr.open_dataset(f'{PREDS_PATH}/predTest_{modelName}.nc')
         preds_train = xr.open_dataset(f'{PREDS_PATH}/predTrain_{modelName}.nc')
         whole_preds = xr.merge([preds_train, preds_test])
-        whole_mean = whole_preds.resample(time = 'YE').mean()
-        whole_mean = whole_preds.mean(dim=['lat', 'lon'])#resample(time='1Y')
+        whole_mean[predictand_number] = whole_preds.resample(time = 'YE').mean()
+        whole_mean[predictand_number] = whole_preds[predictand_number].mean(dim=['lat', 'lon'])#resample(time='1Y')
         
         temporal_mean.append(whole_mean)
 
@@ -421,20 +403,16 @@ for predictand_name in predictands:
 
    
     #PREDICTED DATA:
-    gcm_preds = {}
-    whole_preds = {}
-    whole_mean = {}
     whole_99 = {}
-    temporal_mean = []
     temporal_99 = []
-    predictand_numbered = [f"{predictand_name}_{i}" for i in range(1, 11)]
+    predictand_numbered = [f"{predictand_name}_{i}" for i in range(1, ENSEMBLE_QUANTITY+1)]
     for predictand_number in predictand_numbered:
         modelName = f'DeepESD_tas_{predictand_number}' 
         print(modelName)
         preds_test = xr.open_dataset(f'{PREDS_PATH}/predTest_{modelName}.nc')
         preds_train = xr.open_dataset(f'{PREDS_PATH}/predTrain_{modelName}.nc')
         whole_preds = xr.merge([preds_train, preds_test])
-        whole_99 = whole_preds[predictand_number].resample(time = 'YE').quantile(0.99, dim = 'time')
+        whole_99[predictand_number] = whole_preds.resample(time = 'YE').quantile(0.99, dim = 'time')
         whole_99[predictand_number] = whole_99[predictand_number].mean(dim=['lat', 'lon'])
         
         temporal_99.append(whole_mean)
