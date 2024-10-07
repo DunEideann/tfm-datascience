@@ -1729,7 +1729,7 @@ def graphVariances(variances, scenario, figs_path, vmin, vmax, var='tasmean', gr
     plt.savefig(fig_name, bbox_inches='tight')
     plt.close()
 
-def graphVariancesMeanSd(variances, scenario, figs_path, vmin=0, vmax=1, var='tasmean', graph_names = ['mean_normalized', 'sd_normalized'], extension = 'pdf', extra='', extra_title='', color='Reds', color_change = None, logBase=None):
+def graphVariancesMeanSd(variances, scenario, figs_path, vmin=0, vmax=50, var='tasmean', graph_names = ['mean_normalized', 'sd_normalized'], extension = 'pdf', extra='', extra_title='', color='Reds', color_change = None, logBase=None):
     numLevels = 10
     continuousCMAP = plt.get_cmap(color)
     discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
@@ -1864,16 +1864,16 @@ def getVariance(dataset1, dataset2 = None, var = 'tasmean', metric = 'mean', per
 
     variances['total'] = variances['sdm'] + variances['realization'] + variances['r-sdm']
     if percentage:
+        variances['mean_normalized'] = means['total']
+        variances['sd_normalized'] = np.sqrt(variances['total'])
         variances['sdm'] = variances['sdm']*(100/variances['total'])
         variances['realization'] = variances['realization']*(100/variances['total'])
         variances['r-sdm'] = variances['r-sdm']*(100/variances['total'])
         variances['total'] = variances['sdm'] + variances['realization'] + variances['r-sdm']
-        max_mean = means['total'].max()
-        variances['mean_normalized'] = means['total']/max_mean
-        variances['sd_normalized'] = means['sd']/max_mean
+        
     else:
         variances['mean_normalized'] = means['total']
-        variances['sd_normalized'] = means['sd']
+        variances['sd_normalized'] = np.sqrt(variances['total'])
 
     
     return variances

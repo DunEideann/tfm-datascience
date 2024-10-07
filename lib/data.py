@@ -1,5 +1,6 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
+import random
 
 # Paths
 DATA_PATH = './data/'
@@ -39,6 +40,9 @@ class downscalingDatasetSamples(Dataset):
 
     def __getitem__(self, idx):
         x = self.x[idx, :, :, :]
-        y = sample(self.y)[idx, :]
+
+        y_index = torch.randint(0, len(self.y), (1,)).item()  # Seleccionamos un índice aleatorio de self.y
+        y_random = self.y[y_index]
+        y = y_random[idx, :]
 
         return x, y
