@@ -13,8 +13,8 @@ import itertools
 
 graph_dict = {
         'mean': 'Mean',
-        '99quantile': 'Quantile 99',
-        '1quantile': 'Quantile 1',
+        '99quantile': 'Percentile 99',
+        '1quantile': 'Percentile 1',
         'std': 'Standar Deviation',
         'trend': 'Trend',
         'over30': 'Days Over 30',
@@ -1344,8 +1344,8 @@ def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, pe
 
     start_time = time()
     #for period, period_data in datasets_metrics.items():
-    nRows, nCols = 5, 6
-    fig, axes = plt.subplots(nRows, nCols, figsize=(25, nRows*3), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+    nRows, nCols = 5, len(datasets_metrics)
+    fig, axes = plt.subplots(nRows, nCols, figsize=(25, nRows*3 +(nRows-6)), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
     for i, (predictand_name, predictand_data) in enumerate(datasets_metrics.items()): 
         #Cambiar a un diccionario TODO
         for j, (metric, metric_data) in enumerate(predictand_data.items()):

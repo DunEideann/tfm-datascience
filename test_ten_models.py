@@ -18,6 +18,8 @@ MODEL_NAME = sys.argv[1]
 GCM_NAME = sys.argv[2]
 PERIOD = int(sys.argv[3])
 SCENARIO = int(sys.argv[4])
+NUMBER = int(sys.argv[5])
+MODEL_NAME = f"{MODEL_NAME}_{NUMBER}"
 
 # Listado de escenarios a predecir
 scenarios = ['ssp126', 'ssp245', 'ssp370', 'ssp585']

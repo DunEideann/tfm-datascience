@@ -25,7 +25,7 @@ class downscalingDataset(Dataset):
 
         return x, y
     
-class downscalingDatasetSamples(Dataset):
+class downscalingDatasetEnsemble(Dataset):
 
     '''
     Basic Dataset class

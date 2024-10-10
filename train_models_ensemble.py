@@ -23,7 +23,7 @@ PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/'
 VARIABLES_TO_DROP = ['lon_bnds', 'lat_bnds', 'crs']
 LAT_SLICE = slice(33.5, 48.6)
 LON_SLICE = slice(-10.5, 4.6)
-PREDICTAND_NAME = sys.argv[1]
+ENSEMBLE_PREDICTAND_NAME = sys.argv[1]
 MODEL_NUMBER = sys.argv[2]
 # PREDICTAND_NAME = 'pti-grid' 
 # MODEL_NUMBER = 1
@@ -60,108 +60,112 @@ for var in predictors_vars:
 
 
 predictors = xr.merge(data_predictors) # Mergiamos todos los dataset de distintas variables en 1
-print("Predictores terminados!")
-# Cargamos el predictando y lo preparamos
-# Obtenemos el nombre del dataset
-file_name = utils.getFileName(DATA_PATH_PREDICTANDS_SAVE, PREDICTAND_NAME, keyword = 'tasmean')
-
-
-predictand_path = f'{DATA_PATH_PREDICTANDS_SAVE}{PREDICTAND_NAME}/{file_name}'
-predictand = xr.open_dataset(predictand_path,
-                             chunks=-1) # Near surface air temperature (daily mean)
-predictand = utils.checkCorrectData(predictand) # Transform coordinates and dimensions if necessary
-
-predictand = utils.checkIndex(predictand)
-predictand = utils.checkUnitsTempt(predictand, 'tasmean')
-predictand = utils.removeWrongData(predictand, 'tasmean')
 predictors = predictors.reindex(lat=list(reversed(predictors.lat))) # Reordenamos la latitud del predictor para que tenga el mismo orden del predictando
-
-#Preparamos datos para entrenamiento
 # Remove days with nans in the predictor
 predictors = utils.removeNANs(grid=predictors)
+print("Predictores terminados!")
 
-# Align both datasets in time
-predictand=predictand.assign_coords({'time': predictand.indexes['time'].normalize()})
-y, x = utils.alignDatasets(grid1=predictand, grid2=predictors, coord='time')
+for predictand_name in ENSEMBLE_PREDICTAND_NAME:
+    file_name = utils.getFileName(DATA_PATH_PREDICTANDS_SAVE, predictand_name, keyword = 'tasmean')
 
-# Split into train and test set
-yearsTrain = ('1980-01-01', '2003-12-31')
-yearsTest = ('2004-01-01', '2015-12-31')
+    predictand_path = f'{DATA_PATH_PREDICTANDS_SAVE}{predictand_name}/{file_name}'
+    predictand = xr.open_dataset(predictand_path,
+                                chunks=-1) # Near surface air temperature (daily mean)
+    predictand = utils.checkCorrectData(predictand) # Transform coordinates and dimensions if necessary
 
+    predictand = utils.checkIndex(predictand)
+    predictand = utils.checkUnitsTempt(predictand, 'tasmean')
+    predictand = utils.removeWrongData(predictand, 'tasmean', predictand_name)
 
-# Filtrar años en base a predictandos y ver sus NANs y los rangos de años
-xTrain = x.sel(time=slice(*yearsTrain)).load()
-xTest = x.sel(time=slice(*yearsTest)).load()
+    # Align both datasets in time
+    predictand=predictand.assign_coords({'time': predictand.indexes['time'].normalize()})
 
-yTrain = y.sel(time=slice(*yearsTrain)).load()
-yTest = y.sel(time=slice(*yearsTest)).load()
+    y, x = utils.alignDatasets(grid1=predictand, grid2=predictors, coord='time')
 
-# Standardize the predictor
-meanTrain = xTrain.mean('time')
-stdTrain = xTrain.std('time')
-xTrainStand = (xTrain - meanTrain) / stdTrain
-
-# Extract the raw data from the xarray Dataset
-xTrainStand_array = utils.toArray(xTrainStand)
-
-# Remove nans gridpoints and flatten the predictand
-baseMask = utils.obtainMask(
-    path=f'{DATA_PATH_PREDICTANDS_SAVE}AEMET_0.25deg/AEMET_0.25deg_tasmean_1951-2022.nc',
-    var='tasmean',
-    to_slice=(yearsTrain[0], yearsTest[1]))
-yTrainFlat = baseMask.flatten(grid=yTrain, var='tasmean')
-#plt.figure(); yTrain['tasmean'].mean('time').plot(); plt.savefig('./yTestPre.pdf')
-
-# Extract the raw data from the xarray Dataset
-yTrainFlat_array = utils.toArray(yTrainFlat)
-yTrainFlat['tasmean'].values = yTrainFlat_array
-yTrainUnflatten = baseMask.unFlatten(grid=yTrainFlat, var='tasmean')
+    # Split into train and test set
+    yearsTrain = ('1980-01-01', '2003-12-31')
+    yearsTest = ('2004-01-01', '2015-12-31')
 
 
+    # Filtrar años en base a predictandos y ver sus NANs y los rangos de años
+    xTrain = x.sel(time=slice(*yearsTrain)).load()
+    xTest = x.sel(time=slice(*yearsTest)).load()
 
-# Same 
-yTestFlat = baseMask.flatten(grid=yTest, var='tasmean')
-yTestFlat_array = utils.toArray(yTestFlat)
-yTestFlat['tasmean'].values = yTestFlat_array
-yTestUnflatten = baseMask.unFlatten(grid=yTestFlat, var='tasmean')
-maskToUse = baseMask
+    yTrain = y.sel(time=slice(*yearsTrain)).load()
+    yTest = y.sel(time=slice(*yearsTest)).load()
 
-if np.isnan(yTrainFlat_array).sum() > 0:
-    # Second security mask
-    secondMask = utils.obtainMask(grid = yTrainUnflatten, var = 'tasmean')
-    ySecondTrainFlat = secondMask.flatten(grid=yTrainUnflatten, var='tasmean')
-    yTrainFlat_array = utils.toArray(ySecondTrainFlat)
-    yTestFlat2 = secondMask.flatten(grid=yTestUnflatten, var='tasmean')
-    yTestFlat_array2 = utils.toArray(yTestFlat2)
-    yTestFlat2['tasmean'].values = yTestFlat_array2
-    yTestUnflatten = secondMask.unFlatten(grid=yTestFlat2, var='tasmean')
-    maskToUse = secondMask
-    print(f"Valores NAN en yTrain: {np.isnan(yTrainFlat_array).sum()}- Radio de nueva mascara: {secondMask.refArray.shape}/{baseMask.refArray.shape}")
+    # Standardize the predictor
+    meanTrain = xTrain.mean('time')
+    stdTrain = xTrain.std('time')
+    xTrainStand = (xTrain - meanTrain) / stdTrain
 
+    # Extract the raw data from the xarray Dataset
+    xTrainStand_array = utils.toArray(xTrainStand)
+
+    # Remove nans gridpoints and flatten the predictand
+    baseMask = utils.obtainMask(
+        path=f'{DATA_PATH_PREDICTANDS_SAVE}AEMET_0.25deg/AEMET_0.25deg_tasmean_1951-2022.nc',
+        var='tasmean',
+        to_slice=(yearsTrain[0], yearsTest[1]))
+    yTrainFlat = baseMask.flatten(grid=yTrain, var='tasmean')
+    #plt.figure(); yTrain['tasmean'].mean('time').plot(); plt.savefig('./yTestPre.pdf')
+
+    # Extract the raw data from the xarray Dataset
+    yTrainFlat_array = utils.toArray(yTrainFlat)
+    yTrainFlat['tasmean'].values = yTrainFlat_array
+    yTrainUnflatten = baseMask.unFlatten(grid=yTrainFlat, var='tasmean')
+
+
+
+    # Same 
+    yTestFlat = baseMask.flatten(grid=yTest, var='tasmean')
+    yTestFlat_array = utils.toArray(yTestFlat)
+    yTestFlat['tasmean'].values = yTestFlat_array
+    yTestUnflatten = baseMask.unFlatten(grid=yTestFlat, var='tasmean')
+    maskToUse = baseMask
+
+    if np.isnan(yTrainFlat_array).sum() > 0:
+        # Second security mask
+        secondMask = utils.obtainMask(grid = yTrainUnflatten, var = 'tasmean')
+        ySecondTrainFlat = secondMask.flatten(grid=yTrainUnflatten, var='tasmean')
+        yTrainFlat_array = utils.toArray(ySecondTrainFlat)
+        yTestFlat2 = secondMask.flatten(grid=yTestUnflatten, var='tasmean')
+        yTestFlat_array2 = utils.toArray(yTestFlat2)
+        yTestFlat2['tasmean'].values = yTestFlat_array2
+        yTestUnflatten = secondMask.unFlatten(grid=yTestFlat2, var='tasmean')
+        maskToUse = secondMask
+        print(f"Valores NAN en yTrain: {np.isnan(yTrainFlat_array).sum()}- Radio de nueva mascara: {secondMask.refArray.shape}/{baseMask.refArray.shape}")
+
+    # Split training data into training and validation sets
+    xTrainM, yTrainM, \
+    xValidM, yValidM = utils.validSet_fromArray(Xarray=xTrainStand_array,
+                                                Yarray=yTrainFlat_array,
+                                                validPerc=0.1,  
+                                                seed=15)
+
+    xTrainEnsemble = []
+    yTrainEnsemble = []
+    xValidEnsemble = []
+    yValidEnsemble = []
 
 # Comenzamos entrenamiento del modelo
 # Load the DeepESD model
-modelName = f'DeepESD_tas_{PREDICTAND_NAME}_{MODEL_NUMBER}' # Name used to save the model as a .pt file
+modelName = f'DeepESD_tas_Ensemble_{MODEL_NUMBER}' # Name used to save the model as a .pt file
 model = models.DeepESD(spatial_x_dim=xTrainStand_array.shape[2:],
                        out_dim=yTrainFlat_array.shape[1],
                        channelsInputLayer=xTrainStand_array.shape[1],
                        channelsLastLayer=10)
 print(model)
-# Split training data into training and validation sets
-xTrainM, yTrainM, \
-xValidM, yValidM = utils.validSet_fromArray(Xarray=xTrainStand_array,
-                                            Yarray=yTrainFlat_array,
-                                            validPerc=0.1,  
-                                            seed=15)
+
 
 # Create Dataset and DataLoaders
 batchSize = 64
 
-trainDataset = data.downscalingDataset(xTrainM, yTrainM)
+trainDataset = data.downscalingDatasetEnsemble(xTrainM, yTrainM)
 trainDataloader = DataLoader(trainDataset, batch_size=batchSize,
                              shuffle=True)
 
-validDataset = data.downscalingDataset(xValidM, yValidM)
+validDataset = data.downscalingDatasetEnsemble(xValidM, yValidM)
 validDataloader = DataLoader(validDataset, batch_size=batchSize,
                              shuffle=True)
 

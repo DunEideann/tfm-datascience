@@ -30,7 +30,7 @@ values_extended = True if scenario == 'ssp585' else False
 yearsTrain = ('1980-01-01', '2003-12-31') #24 años
 yearsTest = ('2004-01-01', '2015-12-31') #12 años
 
-predictands = ['ERA5-Land0.25deg', 'E-OBS','AEMET_0.25deg', 'Iberia01_v1.0', 'pti-grid', 'CHELSA']
+predictands = ['ERA5-Land0.25deg', 'E-OBS','AEMET_0.25deg', 'Iberia01_v1.0', 'CHELSA']#, 'pti-grid',]
 metrics = ['mean', '99quantile', '1quantile', 'std', 'over30']
 seasons = {'spring': 'MAM', 'summer': 'JJA', 'autumn': 'SON', 'winter': 'DJF'}
 
