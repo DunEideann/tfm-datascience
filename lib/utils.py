@@ -1729,7 +1729,7 @@ def graphVariances(variances, scenario, figs_path, vmin, vmax, var='tasmean', gr
     plt.savefig(fig_name, bbox_inches='tight')
     plt.close()
 
-def graphVariancesMeanSd(variances, scenario, figs_path, vmin=0, vmax=50, var='tasmean', graph_names = ['mean_normalized', 'sd_normalized'], extension = 'pdf', extra='', extra_title='', color='Reds', color_change = None, logBase=None):
+def graphVariancesMeanSd(variances, scenario, figs_path, vmin=0, vmax=50, jump=3, var='tasmean', graph_names = ['mean_normalized', 'sd_normalized'], extension = 'pdf', extra='', extra_title='', color='Reds', color_change = None, logBase=None):
     numLevels = 10
     continuousCMAP = plt.get_cmap(color)
     discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
@@ -1741,7 +1741,7 @@ def graphVariancesMeanSd(variances, scenario, figs_path, vmin=0, vmax=50, var='t
         else:
             colors[color_change[0]] = color_change[1]
         discreteCMAPnoWhite = ListedColormap(colors)
-    fig, axes = plt.subplots(nrows=len(graph_names), ncols=1, figsize=(10, 15), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+    fig, axes = plt.subplots(nrows=len(graph_names), ncols=1, figsize=(10, 12), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
     for i, graph_name in enumerate(graph_names):
             
         ax = axes[i] # [filas, columnas]
@@ -1760,6 +1760,7 @@ def graphVariancesMeanSd(variances, scenario, figs_path, vmin=0, vmax=50, var='t
     cax = fig.add_axes([0.91, 0.058, 0.04, 0.88])#fig.add_axes([0.91, 0.51, 0.04, 0.425])
     cbar = plt.colorbar(im, cax, pad=0.05, orientation='vertical', spacing='uniform')#, extend='both', extendfrac='auto', )
     cbar.ax.tick_params(labelsize=18)
+    cbar.set_ticks(np.arange(vmin, vmax+1, jump))
     if logBase == None:
         fig_name = f'{figs_path}/meanSd_{scenario}{extra}.{extension}'
     else:
@@ -1794,6 +1795,7 @@ def __getMeans(data1, data2 = None):
     for j, value in temporal_numbered.items():
         numbered_concat = xr.concat(value, dim='member')
         result['numbers'][j] = numbered_concat.mean('member')
+
     total_concat = xr.concat(temporal_total, dim='member')
     result['total'] = total_concat.mean('member')
     result['sd'] = total_concat.std('member')

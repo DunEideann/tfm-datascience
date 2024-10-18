@@ -65,6 +65,12 @@ predictors = predictors.reindex(lat=list(reversed(predictors.lat))) # Reordenamo
 predictors = utils.removeNANs(grid=predictors)
 print("Predictores terminados!")
 
+
+xTrainEnsemble = []
+yTrainEnsemble = []
+xValidEnsemble = []
+yValidEnsemble = []
+
 for predictand_name in ENSEMBLE_PREDICTAND_NAME:
     file_name = utils.getFileName(DATA_PATH_PREDICTANDS_SAVE, predictand_name, keyword = 'tasmean')
 
@@ -143,10 +149,10 @@ for predictand_name in ENSEMBLE_PREDICTAND_NAME:
                                                 validPerc=0.1,  
                                                 seed=15)
 
-    xTrainEnsemble = []
-    yTrainEnsemble = []
-    xValidEnsemble = []
-    yValidEnsemble = []
+    xTrainEnsemble.append(xTrainM)
+    yTrainEnsemble.append(yTrainM)
+    xValidEnsemble.append(xValidM)
+    yValidEnsemble.append(yValidM)
 
 # Comenzamos entrenamiento del modelo
 # Load the DeepESD model
@@ -161,12 +167,12 @@ print(model)
 # Create Dataset and DataLoaders
 batchSize = 64
 
-trainDataset = data.downscalingDatasetEnsemble(xTrainM, yTrainM)
+trainDataset = data.downscalingDatasetEnsemble(xTrainEnsemble, yTrainEnsemble)
 trainDataloader = DataLoader(trainDataset, batch_size=batchSize,
                              shuffle=True)
 
-validDataset = data.downscalingDatasetEnsemble(xValidM, yValidM)
-validDataloader = DataLoader(validDataset, batch_size=batchSize,
+validDataset = data.downscalingDatasetEnsemble(xValidEnsemble, yValidEnsemble)
+validDataloader = DataLoader(validDataset, batch_size=batchSize, 
                              shuffle=True)
 
 # Optimizer

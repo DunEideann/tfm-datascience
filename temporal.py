@@ -30,7 +30,7 @@ ccsignal_periods = ['MEDIUM', 'LONG']
 statistics = ['1Quantile', '99Quantile', 'Mean']
 numbers = [5, 6]
 periods = ['test', f'{future_4[0]}-{future_4[1]}', f'{future_3[0]}-{future_3[1]}']
-
+quantity = 50
 
 for statistic in statistics:
     for predictands_num in numbers:
@@ -41,19 +41,19 @@ for statistic in statistics:
         for period in periods:
             opt = 'ssp585' if period!='test' else ''
             opt2 = '_' if period!='test' else ''
-            image_name_ssp = f'{FIGS_PATH}/variancesGraph_{opt}{period}{opt2}{statistic}_Percentage_{predictands_num}.png'
+            image_name_ssp = f'{FIGS_PATH}/variancesGraph_{opt}{period}{opt2}{statistic}_Percentage_{predictands_num}_Quantity_{quantity}.png'
             images_ssp.append(image_name_ssp)
-            image_mean_sd =  f'{FIGS_PATH}/meanSd_{opt}{period}{opt2}{statistic}_Percentage_{predictands_num}.png'
+            image_mean_sd =  f'{FIGS_PATH}/meanSd_{opt}{period}{opt2}{statistic}_Percentage_{predictands_num}_Quantity_{quantity}.png'
             images_mean_sd.append(image_mean_sd)
 
         for cc_period in ccsignal_periods:
-            image_name_cc = f'{FIGS_PATH}/variancesGraph_ccsignal{statistic}_Percentage_{predictands_num}_{cc_period}.png'
+            image_name_cc = f'{FIGS_PATH}/variancesGraph_ccsignal{statistic}_Percentage_{predictands_num}_{cc_period}_Quantity_{quantity}.png'
             images_cc.append(image_name_cc)
-            image_mean_sd_cc =  f'{FIGS_PATH}/meanSd_ccsignal{statistic}_Percentage_{predictands_num}_{cc_period}.png'
+            image_mean_sd_cc =  f'{FIGS_PATH}/meanSd_ccsignal{statistic}_Percentage_{predictands_num}_{cc_period}_Quantity_{quantity}.png'
             images_mean_sd_cc.append(image_mean_sd_cc)
 
 
-        imageCombiner(images_path=images_ssp, extra=f'prediction_{statistic}_{predictands_num}')
-        imageCombiner(images_path=images_cc, extra=f'ccsignal_{statistic}_{predictands_num}')
-        imageCombiner(images_path=images_mean_sd, extra=f'mean_sd_{statistic}_{predictands_num}')
-        imageCombiner(images_path=images_mean_sd_cc, extra=f'mean_sd_ccsignal_{statistic}_{predictands_num}')
+        imageCombiner(images_path=images_ssp, extra=f'prediction_{statistic}_{predictands_num}_Quantity_{quantity}')
+        imageCombiner(images_path=images_cc, extra=f'ccsignal_{statistic}_{predictands_num}_Quantity_{quantity}')
+        imageCombiner(images_path=images_mean_sd, extra=f'mean_sd_{statistic}_{predictands_num}_Quantity_{quantity}')
+        imageCombiner(images_path=images_mean_sd_cc, extra=f'mean_sd_ccsignal_{statistic}_{predictands_num}_Quantity_{quantity}')

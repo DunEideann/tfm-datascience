@@ -14,6 +14,8 @@ DATA_PATH_PREDICTANDS_SAVE = '/lustre/gmeteo/WORK/reyess/data/predictand/'
 PREDICTANDS_SIZE = 6
 PERIOD = 3
 ENSEMBLE_QUANTITY = 50
+LAT = 37
+LON = -8
 SCENARIO = 3
 PREDICTOR = 'EC-Earth3-Veg'
 
@@ -61,7 +63,7 @@ gcm_name = 'EC-Earth3-Veg'
 
 # EFFICIENT CODE:
 # Crear una figura y un conjunto de ejes
-figName = f'histogramFull_Ensemble{ENSEMBLE_QUANTITY}'
+figName = f'histogramFull_Ensemble{ENSEMBLE_QUANTITY}_lon{LON}_lat{LAT}'
 plt.figure(figsize=(12, 7))
 
 xticks = np.linspace(1970, 2100, 14)
@@ -79,7 +81,8 @@ for predictand_name in predictands:
                 to_slice=(yearsTrain[0], yearsTest[1]),
                 objective = obs2.sel(time=slice(*(past_timeline[0], past_timeline[1]))),
                 secondGrid = obs_temp)
-    
+    obs2 = obs2.sel(lat=LAT, lon=LON, method='nearest')
+    #obs2 = obs2.sel(time=slice(*(past_timeline[0], past_timeline[1]))).load()
     #PREDICTED DATA:
     hist_gcm_mean = {}
     temporal_mean = []
@@ -89,11 +92,11 @@ for predictand_name in predictands:
         print(modelName)
         gcms_futures = []
         for future in futures:
-            gcms_futures.append(xr.open_dataset(f'{PREDS_PATH}/predGCM_{modelName}_{gcm_name}_{main_scenerio}_{future[0]}-{future[1]}.nc'))
+            gcms_futures.append(xr.open_dataset(f'{PREDS_PATH}/predGCM_{modelName}_{gcm_name}_{main_scenerio}_{future[0]}-{future[1]}.nc').sel(lat=LAT, lon=LON, method='nearest'))
         gcm_preds = xr.merge(gcms_futures)
         temp_gcm = xr.merge([obs2, gcm_preds])
         temp_gcm_mean = temp_gcm.resample(time = 'YE').mean()
-        temp_gcm_mean = temp_gcm_mean.mean(dim=['lat', 'lon'])#resample(time='1Y')
+        #temp_gcm_mean = temp_gcm_mean.mean(dim=['lat', 'lon'])#resample(time='1Y')
         
         temporal_mean.append(temp_gcm_mean)
 
@@ -102,7 +105,7 @@ for predictand_name in predictands:
     hist_gcm_mean['max'] = temporal_mean_concat.max('member')
     hist_gcm_mean['min'] = temporal_mean_concat.min('member')
 
-    del gcms_futures, temporal_mean, gcm_preds, obs2, obs_temp, temporal_mean_concat
+    del gcms_futures, temporal_mean, gcm_preds, obs2, temporal_mean_concat
 
 
 
@@ -169,12 +172,12 @@ for predictand_name in predictands:
         print(modelName)
         gcms_futures = []
         for future in futures:
-            gcms_futures.append(xr.open_dataset(f'{PREDS_PATH}/predGCM_{modelName}_{gcm_name}_{main_scenerio}_{future[0]}-{future[1]}.nc'))
+            gcms_futures.append(xr.open_dataset(f'{PREDS_PATH}/predGCM_{modelName}_{gcm_name}_{main_scenerio}_{future[0]}-{future[1]}.nc').sel(lat=LAT, lon=LON, method='nearest'))
         gcm_preds = xr.merge(gcms_futures)
         # hist_gcm = xr.merge([obs2, gcm_preds])
         hist_gcm = gcm_preds
         hist_gcm_mean[predictand_number] = hist_gcm.resample(time = 'YE').mean()
-        hist_gcm_mean[predictand_number] = hist_gcm_mean[predictand_number].mean(dim=['lat', 'lon'])#resample(time='1Y')
+        #hist_gcm_mean[predictand_number] = hist_gcm_mean[predictand_number].mean(dim=['lat', 'lon'])#resample(time='1Y')
         
         temporal_mean.append(hist_gcm_mean[predictand_number])
 
@@ -223,7 +226,7 @@ for predictand_name in predictands:
 plt.tight_layout()
 
 # Guardar la figura para este periodo
-figName = f'histogramVariance_Mean_{period_variance[0]}-{period_variance[1]}_Datasets={len(predictands)}_Ensemble{ENSEMBLE_QUANTITY}'
+figName = f'histogramVariance_Mean_{period_variance[0]}-{period_variance[1]}_Datasets={len(predictands)}_Ensemble{ENSEMBLE_QUANTITY}_lon{LON}_lat{LAT}'
 plt.savefig(f'{FIGS_PATH}/{figName}.png', bbox_inches='tight')
 plt.close()
 del hist_gcm_mean
@@ -257,12 +260,12 @@ for predictand_name in predictands:
         print(modelName)
         gcms_futures = []
         for future in futures:
-            gcms_futures.append(xr.open_dataset(f'{PREDS_PATH}/predGCM_{modelName}_{gcm_name}_{main_scenerio}_{future[0]}-{future[1]}.nc'))
+            gcms_futures.append(xr.open_dataset(f'{PREDS_PATH}/predGCM_{modelName}_{gcm_name}_{main_scenerio}_{future[0]}-{future[1]}.nc').sel(lat=LAT, lon=LON, method='nearest'))
         gcm_preds = xr.merge(gcms_futures)
         #hist_gcm = xr.merge([obs2, gcm_preds])
         hist_gcm = gcm_preds
         hist_gcm_99[predictand_number] = hist_gcm.resample(time = 'YE').quantile(0.99, dim = 'time')
-        hist_gcm_99[predictand_number] = hist_gcm_99[predictand_number].mean(dim=['lat', 'lon'])
+        #hist_gcm_99[predictand_number] = hist_gcm_99[predictand_number].mean(dim=['lat', 'lon'])
         
 
         temporal_99.append(hist_gcm_99[predictand_number])
@@ -312,7 +315,7 @@ for predictand_name in predictands:
 plt.tight_layout()
 
 # Guardar la figura para este periodo
-figName = f'histogramVariance_99Quantile_{period_variance[0]}-{period_variance[1]}_Datasets={len(predictands)}_Ensemble{ENSEMBLE_QUANTITY}'
+figName = f'histogramVariance_99Quantile_{period_variance[0]}-{period_variance[1]}_Datasets={len(predictands)}_Ensemble{ENSEMBLE_QUANTITY}_lon{LON}_lat{LAT}'
 plt.savefig(f'{FIGS_PATH}/{figName}.png', bbox_inches='tight')
 plt.close()
 
@@ -345,11 +348,11 @@ for predictand_name in predictands:
     for predictand_number in predictand_numbered:
         modelName = f'DeepESD_tas_{predictand_number}' 
         print(modelName)
-        preds_test = xr.open_dataset(f'{PREDS_PATH_TRAIN}/predTest_{modelName}.nc')
-        preds_train = xr.open_dataset(f'{PREDS_PATH_TRAIN}/predTrain_{modelName}.nc')
+        preds_test = xr.open_dataset(f'{PREDS_PATH_TRAIN}/predTest_{modelName}.nc').sel(lat=LAT, lon=LON, method='nearest')
+        preds_train = xr.open_dataset(f'{PREDS_PATH_TRAIN}/predTrain_{modelName}.nc').sel(lat=LAT, lon=LON, method='nearest')
         whole_preds = xr.merge([preds_train, preds_test])
         whole_mean[predictand_number] = whole_preds.resample(time = 'YE').mean()
-        whole_mean[predictand_number] = whole_mean[predictand_number].mean(dim=['lat', 'lon'])#resample(time='1Y')
+        #whole_mean[predictand_number] = whole_mean[predictand_number].mean(dim=['lat', 'lon'])#resample(time='1Y')
         
         temporal_mean.append(whole_mean[predictand_number])
 
@@ -396,7 +399,7 @@ for predictand_name in predictands:
 plt.tight_layout()
 
 # Guardar la figura para este periodo
-figName = f'histogramTestTrain_Mean_{period_variance[0]}-{period_variance[1]}_Datasets={len(predictands)}_Ensemble{ENSEMBLE_QUANTITY}'
+figName = f'histogramTestTrain_Mean_{period_variance[0]}-{period_variance[1]}_Datasets={len(predictands)}_Ensemble{ENSEMBLE_QUANTITY}_lon{LON}_lat{LAT}'
 plt.savefig(f'{FIGS_PATH}/{figName}.png', bbox_inches='tight')
 plt.close()
 
@@ -423,11 +426,11 @@ for predictand_name in predictands:
     for predictand_number in predictand_numbered:
         modelName = f'DeepESD_tas_{predictand_number}' 
         print(modelName)
-        preds_test = xr.open_dataset(f'{PREDS_PATH_TRAIN}/predTest_{modelName}.nc')
-        preds_train = xr.open_dataset(f'{PREDS_PATH_TRAIN}/predTrain_{modelName}.nc')
+        preds_test = xr.open_dataset(f'{PREDS_PATH_TRAIN}/predTest_{modelName}.nc').sel(lat=LAT, lon=LON, method='nearest')
+        preds_train = xr.open_dataset(f'{PREDS_PATH_TRAIN}/predTrain_{modelName}.nc').sel(lat=LAT, lon=LON, method='nearest')
         whole_preds = xr.merge([preds_train, preds_test])
         whole_99[predictand_number] = whole_preds.resample(time = 'YE').quantile(0.99, dim = 'time')
-        whole_99[predictand_number] = whole_99[predictand_number].mean(dim=['lat', 'lon'])
+        #whole_99[predictand_number] = whole_99[predictand_number].mean(dim=['lat', 'lon'])
         
         temporal_99.append(whole_99[predictand_number])
 
@@ -474,7 +477,7 @@ for predictand_name in predictands:
 plt.tight_layout()
 
 # Guardar la figura para este periodo
-figName = f'histogramTestTrain_99percentil_{period_variance[0]}-{period_variance[1]}_Datasets={len(predictands)}_Ensemble{ENSEMBLE_QUANTITY}'
+figName = f'histogramTestTrain_99percentil_{period_variance[0]}-{period_variance[1]}_Datasets={len(predictands)}_Ensemble{ENSEMBLE_QUANTITY}_lon{LON}_lat{LAT}'
 plt.savefig(f'{FIGS_PATH}/{figName}.png', bbox_inches='tight')
 plt.close()
 print("TestTrain 99")
