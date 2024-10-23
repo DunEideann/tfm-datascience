@@ -304,9 +304,9 @@ def checkIndex(dataset):
     lat_diff = dataset['lat'].diff('lat')
     lon_diff = dataset['lon'].diff('lon')
     if np.all(lat_diff < 0):
-        dataset_modificado = dataset_modificado.reindex(lat=list(reversed(predictand.lat)))
+        dataset_modificado = dataset_modificado.reindex(lat=list(reversed(dataset.lat)))
     if np.all(lon_diff < 0):
-        dataset_modificado = dataset_modificado.reindex(lon=list(reversed(predictand.lon)))
+        dataset_modificado = dataset_modificado.reindex(lon=list(reversed(dataset.lon)))
 
     return dataset_modificado
 
@@ -1051,6 +1051,30 @@ def maskData(var, objective, secondGrid=None, grid = None, path = None, to_slice
         secondFlat_array = toArray(secondFlat)
         secondFlat[var].values = secondFlat_array
         objectiveUnflatten = secondMask.unFlatten(grid=secondFlat, var=var)
+
+    return objectiveUnflatten
+
+def maskShareFile(var, objective, share_file):
+    """_summary_
+
+    Args:
+        var (_type_): _description_
+        objective (_type_): _description_
+        share_file (_type_): _description_.
+
+    Returns:
+        _type_: _description_
+    """
+    share_file = checkCorrectData(share_file) # Transform coordinates and dimensions if necessary
+    share_file = checkIndex(share_file)
+    share_file=share_file.assign_coords({'time': share_file.indexes['time'].normalize()})
+    baseMask = flattenSpatialGrid(grid=share_file.load(), var=var)
+
+    objectiveFlat = baseMask.flatten(grid=objective, var=var)
+    objectiveFlat_array = toArray(objectiveFlat)
+    objectiveFlat[var].values = objectiveFlat_array
+    objectiveUnflatten = baseMask.unFlatten(grid=objectiveFlat, var=var)
+    
 
     return objectiveUnflatten
 

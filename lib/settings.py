@@ -17,3 +17,8 @@ models_linestyle = {
     'ERA5-Land0.25deg': '-',
     'CHELSA': '--'
 }
+
+regions_points = {
+    'ebro': {'LAT': (), 'LON': ()},
+    'cuenca': {'LAT': (), 'LON': ()}
+}
