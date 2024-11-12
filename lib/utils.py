@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 from matplotlib.colors import ListedColormap, BoundaryNorm, LinearSegmentedColormap
 import itertools
+from xskillscore import crps_ensemble
 
 graph_dict = {
         'mean': 'Mean',
@@ -19,7 +20,8 @@ graph_dict = {
         'trend': 'Trend',
         'over30': 'Days Over 30',
         'over40': 'Days Over 40',
-        'mean_max_mean': 'Mean Max Mean'
+        'mean_max_mean': 'Mean Max Mean',
+        'crps': 'CRPS'
         }
 
 def checkUnitsTempt(data, var):
@@ -52,7 +54,7 @@ def removeWrongData(data, var='tasmean', name='CHELSA'):
     return data_cleaned
     
 
-def getMetricsTemp(data, var = None, short = False):#, mask=None):
+def getMetricsTemp(data, data_reference = None, var = 'tasmean', short = False):#, mask=None):
     """_summary_
 
     Args:
@@ -61,8 +63,6 @@ def getMetricsTemp(data, var = None, short = False):#, mask=None):
     Returns:
         _type_: _description_
     """
-    if var == None:
-        var = 'tasmean'
     val_mean = data.mean(dim = 'time')
     val_mean_annual = data.resample(time = 'YE').mean()
     val_st = data.std(dim='time')
@@ -74,6 +74,7 @@ def getMetricsTemp(data, var = None, short = False):#, mask=None):
     over40 = data[var].where(data[var] >= 40).resample(time='YS').count(dim='time').mean(dim='time').to_dataset(name=var)
     over40 = over40.where(over40 != 0, np.nan)
     mean_max_mean = data.resample(time = 'YE').max(dim='time').mean(dim='time')
+    crps = crps_ensemble(data, data_reference) if data_reference!=None else 0
 
     if short:
         response = {
@@ -81,7 +82,8 @@ def getMetricsTemp(data, var = None, short = False):#, mask=None):
         '99quantile': val_99,
         '1quantile': val_1,
         'std': val_st,
-        'over30': over30
+        'over30': over30,
+        'crps': crps
         }
     else:
         response = {
@@ -93,7 +95,8 @@ def getMetricsTemp(data, var = None, short = False):#, mask=None):
         'trend': val_mean_annual,
         'over30': over30,
         'over40': over40,
-        'mean_max_mean': mean_max_mean
+        'mean_max_mean': mean_max_mean,
+        'crps': crps
         }
 
     return response
@@ -1348,7 +1351,7 @@ def getDataset(datasets, metric, var=None):
 
     return new_dataset
 
-def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, period, extension='pdf', noWhite=False, colorModifier=[], numLevels=10, ticksX=6):
+def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, period, extra = '', extension='pdf', noWhite=False, colorModifier=[], numLevels=10, ticksX=6, numberStatistics=5):
            
 
     continuousCMAP = plt.get_cmap('hot_r')
@@ -1368,8 +1371,8 @@ def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, pe
 
     start_time = time()
     #for period, period_data in datasets_metrics.items():
-    nRows, nCols = 5, len(datasets_metrics)
-    fig, axes = plt.subplots(nRows, nCols, figsize=(25, nRows*3 +(nRows-6)), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+    nRows, nCols = numberStatistics, len(datasets_metrics)
+    fig, axes = plt.subplots(nRows, nCols, figsize=(20, nRows*3 +(nRows-6)), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
     for i, (predictand_name, predictand_data) in enumerate(datasets_metrics.items()): 
         #Cambiar a un diccionario TODO
         for j, (metric, metric_data) in enumerate(predictand_data.items()):
@@ -1400,7 +1403,7 @@ def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, pe
                 cbar.ax.tick_params(labelsize=16)
 
     plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
-    plt.savefig(f'{figs_path}/fig{fig_num}_metrics_{pred_type}_{period}.{extension}', bbox_inches='tight')
+    plt.savefig(f'{figs_path}/fig{fig_num}_metrics_{pred_type}_{period}{extra}.{extension}', bbox_inches='tight')
     plt.close()
 
     total_time = time() - start_time
