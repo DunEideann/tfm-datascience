@@ -17,12 +17,12 @@ DATA_PATH_SHAPE = '/lustre/gmeteo/WORK/reyess/shapes/'
 # ENSEMBLE_QUANTITY = int(sys.argv[3])
 # METRIC = int(sys.argv[4])
 PREDICTANDS_SIZE = 5
-ENSEMBLE_QUANTITY = 10
+ENSEMBLE_QUANTITY = 50
 SCENARIO = 3
 #SHAPE_NAME = ['Iberia', 'Tagus', 'Ebro']#'Tagus2']
 SHAPE_NAME = ['Iberia', 'Pirineos', 'Tinto', 'Duero']
 #SHAPE_NAME = ['Tinto']
-METRIC = '1Percentile' #'1Percentile'
+METRIC = 'Mean' #'1Percentile'
 PREDICTOR = 'EC-Earth3-Veg'
 
 # Listado de escenarios a predecir
@@ -319,7 +319,7 @@ for shape in SHAPE_NAME:
             obs2 = utils.maskData(
                         path = f'{DATA_PATH_PREDICTANDS_SAVE}AEMET_0.25deg/AEMET_0.25deg_tasmean_1951-2022.nc',
                         var='tasmean',
-                        to_slice=(yearsTrain[0], yearsTest[1]),
+                        to_slice=(hist_baseline[0], hist_baseline[1]),
                         objective = obs2.sel(time=slice(*(past_timeline[0], past_timeline[1]))),
                         secondGrid = obs_temp)
             obs2 = obs2.sel(
