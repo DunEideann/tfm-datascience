@@ -81,9 +81,7 @@ def getMetricsTemp(data, data_reference = None, var = 'tasmean', short = False):
         'mean': val_mean,
         '99quantile': val_99,
         '1quantile': val_1,
-        'std': val_st,
-        'over30': over30,
-        'crps': crps
+        'std': val_st
         }
     else:
         response = {
@@ -1351,7 +1349,7 @@ def getDataset(datasets, metric, var=None):
 
     return new_dataset
 
-def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, period, extra = '', extension='pdf', noWhite=False, colorModifier=[], numLevels=10, ticksX=6, numberStatistics=5):
+def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, period, extra = '', extension='pdf', noWhite=False, colorModifier=[], numLevels=10, ticksX=6, numberStatistics=4):
            
 
     continuousCMAP = plt.get_cmap('hot_r')
@@ -1372,7 +1370,8 @@ def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, pe
     start_time = time()
     #for period, period_data in datasets_metrics.items():
     nRows, nCols = numberStatistics, len(datasets_metrics)
-    fig, axes = plt.subplots(nRows, nCols, figsize=(20, nRows*3 +(nRows-6)), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+    print(f"ros y cols: {nRows}-{nCols}")
+    fig, axes = plt.subplots(nRows, nCols, figsize=(20, nRows*3 +(nRows-4)), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
     for i, (predictand_name, predictand_data) in enumerate(datasets_metrics.items()): 
         #Cambiar a un diccionario TODO
         for j, (metric, metric_data) in enumerate(predictand_data.items()):
@@ -1397,7 +1396,7 @@ def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, pe
                                 #norm=BoundaryNorm(bounds, cmap.N))
 
             if i == 0:
-                cax = fig.add_axes([0.125, 0.056 + (4*0.18) - (j * 0.18), 0.776, 0.02]) #DIST DESDE IZQUIERDA/DIST DESDE ABAJO/LARDO HORI/LARGO/VERT
+                cax = fig.add_axes([0.125, 0.733 - (j * 0.225), 0.776, 0.02]) #DIST DESDE IZQUIERDA/DIST DESDE ABAJO/LARDO HORI/LARGO/VERT
                 cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform', orientation='horizontal')#, extend='both', extendfrac='auto', )
                 cbar.set_ticks(np.linspace(vmin[j], vmax[j], ticksX))
                 cbar.ax.tick_params(labelsize=16)
@@ -1797,17 +1796,21 @@ def graphVariancesMeanSd(variances, scenario, figs_path, vmin=0, vmax=50, jump=3
     plt.savefig(fig_name, bbox_inches='tight')
     plt.close()
 
-def __getMeans(data1, data2 = None):
+def __getMeans(data1, data2 = None, type_data ='multiple'):
 
     result = {'total': None, 'predictands': {}, 'numbers': {}, 'individual': {}, 'sd': None}
     temporal_total = []
     temporal_numbered = {}
-    for predictand_name, predictand_sets in data1.items(): 
+    for predictand_name, predictand_sets in data1.items():
+        
         temporal_predictand = []
+        if data2 != None and type_data == 'single':
+                temporal_mean = data2[predictand_name].mean(dim='time')
         for j, (numbered_name, numbered_set) in enumerate(predictand_sets.items()):
             current_mean = numbered_set.mean(dim='time')
-            if data2 != None:
+            if data2 != None and type_data == 'multiple':
                 temporal_mean = data2[predictand_name][numbered_name].mean(dim='time')
+            if data2 != None:
                 current_mean = current_mean - temporal_mean
                 
             temporal_predictand.append(current_mean)
@@ -1829,18 +1832,21 @@ def __getMeans(data1, data2 = None):
 
     return result
 
-def __getQuantileMeans(data1, data2=None, quantile = 0.99):
+def __getQuantileMeans(data1, data2=None, quantile = 0.99, type_data ='multiple'):
 
     result = {'total': None, 'predictands': {}, 'numbers': {}, 'individual': {}, 'sd': None}
     temporal_total = []
     temporal_numbered = {}
     for predictand_name, predictand_sets in data1.items(): 
         temporal_predictand = []
+        if data2 != None and type_data == 'single':
+            temporal_mean = data2[predictand_name].resample(time = 'YE').quantile(quantile, dim = 'time').mean(dim='time')
         for j, (numbered_name, numbered_set) in enumerate(predictand_sets.items()):
             # current_mean = numbered_set.quantile(quantile, dim='time') # QUANTILE TOMADO EN EL TOTAL DE DATOS
             current_mean = numbered_set.resample(time = 'YE').quantile(quantile, dim = 'time').mean(dim='time')
-            if data2 != None:
+            if data2 != None and type_data == 'multiple':
                 temporal_mean = data2[predictand_name][numbered_name].resample(time = 'YE').quantile(quantile, dim = 'time').mean(dim='time')
+            if data2 != None:
                 current_mean = current_mean - temporal_mean
             temporal_predictand.append(current_mean)
             if j not in temporal_numbered:
@@ -1860,15 +1866,15 @@ def __getQuantileMeans(data1, data2=None, quantile = 0.99):
 
     return result
 
-def getVariance(dataset1, dataset2 = None, var = 'tasmean', metric = 'mean', percentage=False):
+def getVariance(dataset1, dataset2 = None, var = 'tasmean', metric = 'mean', percentage=False, type_data = 'multiple'):
 
     variances = {'total': 0, 'realization': 0, 'sdm': 0, 'r-sdm': 0, 'mean_normalized': 0, 'sd_normalized': 0}
     if metric == 'mean':
-        means = __getMeans(data1=dataset1, data2=dataset2) if dataset2 != None else __getMeans(data1=dataset1)
+        means = __getMeans(data1=dataset1, data2=dataset2, type_data=type_data) if dataset2 != None else __getMeans(data1=dataset1)
     elif metric=='99quantile':
-        means = __getQuantileMeans(data1=dataset1, data2=dataset2, quantile=0.99) if dataset2 != None else __getQuantileMeans(data1=dataset1, quantile=0.99)
+        means = __getQuantileMeans(data1=dataset1, data2=dataset2, quantile=0.99, type_data=type_data) if dataset2 != None else __getQuantileMeans(data1=dataset1, quantile=0.99)
     elif metric == '1quantile':
-        means = __getQuantileMeans(data1=dataset1, data2=dataset2, quantile=0.01) if dataset2 != None else __getQuantileMeans(data1=dataset1, quantile=0.01)
+        means = __getQuantileMeans(data1=dataset1, data2=dataset2, quantile=0.01, type_data=type_data) if dataset2 != None else __getQuantileMeans(data1=dataset1, quantile=0.01)
     predictand_quantity = len(dataset1)
     number_quantity = len(next(iter(dataset1.values())))
 
