@@ -262,7 +262,7 @@ if '2' in FIGS:
     # climatology - CCSIGNAL
     for metric in metrics_2:
         vminMetric = {'Mean': (4, 0, 0), '1Percentile': (1, 0, 0), '99Percentile': (4, 0, 0)}
-        vmaxMetric = {'Mean': (9, 0.8, 0.6), '1Percentile': (8, 0.5, 0.5), '99Percentile': (14, 1, 0.9)}
+        vmaxMetric = {'Mean': (9, 0.75, 0.75), '1Percentile': (8, 0.5, 0.5), '99Percentile': (14, 1.25, 1.25)}
 
 
         figName = f'fig2_Statistics_CCSignal_{ENSEMBLE_QUANTITY}_{metric}_part1'
@@ -344,6 +344,9 @@ if '2' in FIGS:
                     dataToGraph = np.log(dataToPlot + 1)
                 else:
                     dataToGraph = dataToPlot
+                print(f'{metric}/{metric_fig}-{predictand_name} max: {dataToGraph.max().item()}')
+                print(f'{metric}/{metric_fig}-{predictand_name} min: {dataToGraph.min().item()}')
+
                 im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
                                     dataToGraph,
                                     transform=ccrs.PlateCarree(),
@@ -381,7 +384,12 @@ if '2' in FIGS:
         data_to_plot['mean-inter'] = np.log(data_to_plot['mean-inter'] + 1)
         data_to_plot['mean-sd'] = mean_combined.std(dim='member')
         data_to_plot['mean-sd'] = np.log(data_to_plot['mean-sd'] + 1)
-
+        print(f'{metric}mean max: {data_to_plot['mean']['tasmean'].max().item()}')
+        print(f'{metric}mean-inter max: {data_to_plot['mean-inter']['tasmean'].max().item()}')
+        print(f'{metric}mean-sdmax: {data_to_plot['mean-sd']['tasmean'].max().item()}')
+        print(f'{metric}mean min: {data_to_plot['mean']['tasmean'].min().item()}')
+        print(f'{metric}mean-inter min: {data_to_plot['mean-inter']['tasmean'].min().item()}')
+        print(f'{metric}mean-sd min: {data_to_plot['mean-sd']['tasmean'].min().item()}')
 
         ax1 = axes[0]
         ax2 = axes[1]
@@ -840,7 +848,7 @@ if '4' in FIGS:
                                 #norm=BoundaryNorm(bounds, cmap.N))
             
             number_patch_mean = Patch(color='white', edgecolor='black', label=f'{number_min_max[metric]}')
-            ax.legend(handles=[number_patch_mean], loc='lower right', bbox_to_anchor=(0, 1), frameon=True, fontsize=12)
+            ax.legend(handles=[number_patch_mean], loc='lower right', bbox_to_anchor=(1, 0), frameon=False, fontsize=12)
 
             if i == 0:
                 cax = fig.add_axes([0.125, 0.73 - (j * 0.225), 0.776, 0.02]) #DIST DESDE IZQUIERDA/DIST DESDE ABAJO/LARDO HORI/LARGO/VERT
@@ -934,7 +942,7 @@ if '4' in FIGS:
                                 vmin=vmin, vmax=vmax)
                                 #norm=BoundaryNorm(bounds, cmap.N))
             number_patch_mean = Patch(color='white', edgecolor='black', label=f'{number_min_max[metric]}')
-            ax.legend(handles=[number_patch_mean], loc='lower right', bbox_to_anchor=(0, 1), frameon=True, fontsize=12)
+            ax.legend(handles=[number_patch_mean], loc=4, bbox_to_anchor=(1, 0), frameon=False, fontsize=12)
 
             if i == 0:
                 cax = fig.add_axes([0.125, 0.73 - (j * 0.225), 0.776, 0.02]) #DIST DESDE IZQUIERDA/DIST DESDE ABAJO/LARDO HORI/LARGO/VERT
