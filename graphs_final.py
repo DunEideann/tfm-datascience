@@ -579,7 +579,7 @@ if '3' in FIGS:
     # CC SIGNAL
     for shape in SHAPE_NAME:
         # Etiquetas
-        colors = ['lightgreen', 'lightblue', 'lightcoral']
+        colors = ['lightgreen', 'lightblue', 'bisque']
         names = ['Short', 'Medium', 'Long']
         legend_handles = []
 
@@ -637,19 +637,20 @@ if '3' in FIGS:
 
             ax = ax1.twiny() if i > 0 else ax1  # Crear ejes adicionales solo para Medium y Long
             color = colors[i]
-            bplot = ax.boxplot(data_to_plot, positions=np.arange(len(predictands))/2 +0.1, widths=0.35, 
-                            patch_artist=True, boxprops=dict(facecolor=color), vert=False, whis=[5, 95])
+            bplot = ax.boxplot(data_to_plot, positions= 5 + np.arange(len(predictands)), widths=0.35, 
+                            patch_artist=True, boxprops=dict(facecolor=color), vert=False, whis=[5, 95], whiskerprops=dict(color=color))
             ax.set_xlim(xmin[1], xmax[1])
             ax.set_xticks([]) if i>0 else ax.set_xticks(np.linspace(xmin[0], xmax[0], 10))
             ax.xaxis.set_ticks_position('top')
 
             ax_99 = ax1.twiny() if i > 0 else ax1  # Crear ejes adicionales solo para Medium y Long
-            bplot = ax_99.boxplot(data_to_plot_99, positions=5 + np.arange(len(predictands))/2 -0.1, widths=0.35, 
-                            patch_artist=True, boxprops=dict(facecolor=color), vert=False, whis=[5, 95])
+            bplot = ax_99.boxplot(data_to_plot_99, positions=np.arange(len(predictands))+0.1 , widths=0.35, 
+                            patch_artist=True, boxprops=dict(facecolor=color), vert=False, whis=[5, 95], whiskerprops=dict(color=color))
             ax_99.set_xlim(xmin[1], xmax[1])
             
             ax_99.set_xticks([]) if i>0 else ax_99.set_xticks(np.linspace(xmin[0], xmax[0], 10))
             ax_99.xaxis.set_ticks_position('bottom')
+            
             
             # Asignar la etiqueta del eje X solo para el primer eje (ax1)
             if i == 0:
@@ -658,11 +659,18 @@ if '3' in FIGS:
             legend_handles.append(bplot["boxes"][0])
 
         # Etiquetas del eje Y solo en ax1
-        ax1.set_yticks(np.arange(len(predictands)) * 2.0)
-        ax1.set_yticklabels(predictands)
+        ax1.set_yticks(np.arange(len(predictands)*2) )
+        ax1.set_yticklabels(predictands*2)
+
+        # Calcular el centro del gráfico
+        y_min, y_max = ax1.get_ylim()
+        y_center = (y_min + y_max) / 2
+        # Dibujar una línea horizontal
+        ax1.hlines(y=y_center, xmin=xmin[1], xmax=xmax[1], colors='black', linestyles='dashed', linewidth=1)
 
         # Agregar una leyenda para cada boxplot
         plt.legend(legend_handles, names, loc='lower right', prop={'size': 10}, frameon=False)
+
 
         # Guardar el gráfico
         plt.savefig(f'{FIGS_PATH}/{figName}.png', bbox_inches='tight')
@@ -1002,26 +1010,37 @@ if '5' in FIGS:
             fig, ax1 = plt.subplots(figsize=(8, 6))
 
             # Cálculo de las líneas de significancia
-            mean_test_pred = np.mean(test_pred)  # Media de los valores test_pred
-            mean_gcm_pred = np.mean(gcm_pred)    # Media de los valores gcm_pred
+            coefficients_test = np.polyfit(rmse_test, test_pred, 1)
+            coefficients_gcm = np.polyfit(rmse_test, gcm_pred, 1)
+            m_test, b_test = coefficients_test
+            m_gcm, b_gcm = coefficients_gcm
+            pendiente_test = [da * m_test for da in rmse_test]
+            pendiente_gcm = [da * m_gcm for da in rmse_test]
+            gcm_min, gcm_max = np.min(gcm_pred), np.max(gcm_pred)
+            gcm_diff = (gcm_max - gcm_min)*0.2
+            test_min, test_max = np.min(test_pred), np.max(test_pred)
+            test_diff = (test_max - test_min)*0.1
 
             # Scatter for gcm_pred on the left Y-axis
             ax1.scatter(rmse_test, gcm_pred, color='red', label='Long (Temperature)', alpha=0.7)
             ax1.set_xlabel('RMSE', fontsize=12)
             ax1.set_ylabel('Long Temperature (°C)', fontsize=12, color='red')
+            ax1.set_ylim(gcm_min-gcm_diff, gcm_max+gcm_diff)
             ax1.tick_params(axis='y', labelcolor='red')  # Color de las etiquetas para distinguir
             ax1.grid(True, linestyle='--', alpha=0.5)
             # Línea de significancia para gcm_pred
-            ax1.plot([min(rmse_test), max(rmse_test)], [mean_gcm_pred, mean_gcm_pred], color='red', linestyle='--', label='Mean GCM')
+            ax1.plot(rmse_test, pendiente_gcm + b_gcm, color='red', linestyle='--', label='GCM Regression')
 
             # Create a second Y-axis for test_pred
             ax2 = ax1.twinx()
             ax2.scatter(rmse_test, test_pred, color='black', label='Test (Temperature)', alpha=0.7)
+            ax2.set_ylim(test_min-test_diff, test_max+test_diff)
             ax2.set_ylabel('Test Temperature (°C)', fontsize=12, color='black')
             ax2.tick_params(axis='y', labelcolor='black')  # Color de las etiquetas para distinguir
 
             # Línea de significancia para test_pred
-            ax2.plot([min(rmse_test), max(rmse_test)], [mean_test_pred, mean_test_pred], color='black', linestyle='--', label='Mean Test')
+            ax2.plot(rmse_test, pendiente_test + b_test, color='black', linestyle='--', label='Test Regression')
+
 
             # Título y leyendas
             fig.suptitle('RMSE vs Temperature', fontsize=14)
