@@ -23,7 +23,7 @@ PREDS_PATH_TEST = '/lustre/gmeteo/WORK/reyess/preds/'
 # INPUT DATA
 FIGS = str(sys.argv[1])
 #FIGS = '5'
-ENSEMBLE_QUANTITY = 5
+ENSEMBLE_QUANTITY = 50
 GCM_NAME = 'EC-Earth3-Veg'
 MAIN_SCENARIO = 'ssp585'
 SHAPE_NAME = ['Iberia', 'Pirineos', 'Tinto', 'Duero']
@@ -638,18 +638,27 @@ if '3' in FIGS:
             ax = ax1.twiny() if i > 0 else ax1  # Crear ejes adicionales solo para Medium y Long
             color = colors[i]
             bplot = ax.boxplot(data_to_plot, positions= 5 + np.arange(len(predictands)), widths=0.35, 
-                            patch_artist=True, boxprops=dict(facecolor=color), vert=False, whis=[5, 95], whiskerprops=dict(color=color))
-            ax.set_xlim(xmin[1], xmax[1])
-            ax.set_xticks([]) if i>0 else ax.set_xticks(np.linspace(xmin[0], xmax[0], 10))
+                            patch_artist=True, boxprops=dict(facecolor=color), vert=False, whis=[5, 95],
+                            whiskerprops=dict(color=color), flierprops=dict(color=color, markeredgecolor=color))
+            ax.set_xlim(xmin[1], xmax[1]-2)
             ax.xaxis.set_ticks_position('top')
+            ax.xaxis.tick_top()
+            #ax.set_xticks([]) if i!=0 else ax.set_xticks(np.linspace(xmin[0], xmax[0], 7))
+            ax.set_xticks(np.linspace(xmin[0], xmax[0]-2, 8))
+            #ax.legend('Mean', loc='center right', bbox_to_anchor=(1, 0))
+
 
             ax_99 = ax1.twiny() if i > 0 else ax1  # Crear ejes adicionales solo para Medium y Long
             bplot = ax_99.boxplot(data_to_plot_99, positions=np.arange(len(predictands))+0.1 , widths=0.35, 
-                            patch_artist=True, boxprops=dict(facecolor=color), vert=False, whis=[5, 95], whiskerprops=dict(color=color))
+                            patch_artist=True, boxprops=dict(facecolor=color), vert=False, whis=[5, 95],
+                            whiskerprops=dict(color=color), flierprops=dict(color=color, markeredgecolor=color))
             ax_99.set_xlim(xmin[1], xmax[1])
-            
-            ax_99.set_xticks([]) if i>0 else ax_99.set_xticks(np.linspace(xmin[0], xmax[0], 10))
             ax_99.xaxis.set_ticks_position('bottom')
+            ax_99.set_xticks([]) if i>0 else ax_99.set_xticks(np.linspace(xmin[0], xmax[0], 10))
+            # if i == 2:
+            #     ax_99.xaxis.set_ticks_position('top')
+            #     ax_99.set_xticks(np.linspace(xmin[0], xmax[0]-2, 10))
+            #ax_99.legend('99 Percentile', loc='center right', bbox_to_anchor=(0.5, 0))
             
             
             # Asignar la etiqueta del eje X solo para el primer eje (ax1)
@@ -677,81 +686,81 @@ if '3' in FIGS:
         plt.savefig(f'{FIGS_PATH}/{figName}.pdf', bbox_inches='tight')
 
 
-    # CLIMATOLOGY
-    xmin = (15, 14)
-    xmax = (40, 41)
-    for shape in SHAPE_NAME:
-        # Etiquetas
-        colors = ['lightgreen', 'lightblue', 'lightcoral']
-        names = ['Short', 'Medium', 'Long']
-        legend_handles = []
+    # # CLIMATOLOGY
+    # xmin = (15, 14)
+    # xmax = (40, 41)
+    # for shape in SHAPE_NAME:
+    #     # Etiquetas
+    #     colors = ['lightgreen', 'lightblue', 'lightcoral']
+    #     names = ['Short', 'Medium', 'Long']
+    #     legend_handles = []
 
-        figName = f'fig3_boxPlot_climatology_Ensemble{ENSEMBLE_QUANTITY}_{shape}'
-        # Crear la figura y los ejes
-        fig, ax1 = plt.subplots(figsize=(10, 8))
+    #     figName = f'fig3_boxPlot_climatology_Ensemble{ENSEMBLE_QUANTITY}_{shape}'
+    #     # Crear la figura y los ejes
+    #     fig, ax1 = plt.subplots(figsize=(10, 8))
 
-        # Graficar cada set de datos (Short, Medium, Long) en el mismo gráfico
-        for i, period in enumerate(periods):
-            data_to_plot = []
-            data_to_plot_99 = []
-            for predictand_name in predictands:
-                predictand_data = []
-                ccsignal_predictand = []
-                ccsignal_predictand_99 = []
-                predictand_numbered = [f"{predictand_name}_{i}" for i in range(1, ENSEMBLE_QUANTITY+1)]
+    #     # Graficar cada set de datos (Short, Medium, Long) en el mismo gráfico
+    #     for i, period in enumerate(periods):
+    #         data_to_plot = []
+    #         data_to_plot_99 = []
+    #         for predictand_name in predictands:
+    #             predictand_data = []
+    #             ccsignal_predictand = []
+    #             ccsignal_predictand_99 = []
+    #             predictand_numbered = [f"{predictand_name}_{i}" for i in range(1, ENSEMBLE_QUANTITY+1)]
 
-                for predictand_number in predictand_numbered:
-                    modelName = f'DeepESD_tas_{predictand_number}' 
-                    loaded_data = xr.open_dataset(f'{PREDS_PATH}/predGCM_{modelName}_{GCM_NAME}_{MAIN_SCENARIO}_{period[0]}-{period[1]}.nc')
-                    grided_data = loaded_data.sel(
-                        lat=references_grid[shape].lat,
-                        lon=references_grid[shape].lon,
-                    ) if shape != 'Iberia' else loaded_data
+    #             for predictand_number in predictand_numbered:
+    #                 modelName = f'DeepESD_tas_{predictand_number}' 
+    #                 loaded_data = xr.open_dataset(f'{PREDS_PATH}/predGCM_{modelName}_{GCM_NAME}_{MAIN_SCENARIO}_{period[0]}-{period[1]}.nc')
+    #                 grided_data = loaded_data.sel(
+    #                     lat=references_grid[shape].lat,
+    #                     lon=references_grid[shape].lon,
+    #                 ) if shape != 'Iberia' else loaded_data
 
-                    grided_data_99 = grided_data.resample(time = 'YE').quantile(0.99, dim = 'time')
-                    grided_mean = grided_data.mean(dim=['time', 'lat', 'lon']) 
-                    grided_mean_99 = grided_data_99.mean(dim=['time', 'lat', 'lon'])
-                    ccsignal_predictand.append(grided_mean)
-                    ccsignal_predictand_99.append(grided_mean_99)
+    #                 grided_data_99 = grided_data.resample(time = 'YE').quantile(0.99, dim = 'time')
+    #                 grided_mean = grided_data.mean(dim=['time', 'lat', 'lon']) 
+    #                 grided_mean_99 = grided_data_99.mean(dim=['time', 'lat', 'lon'])
+    #                 ccsignal_predictand.append(grided_mean)
+    #                 ccsignal_predictand_99.append(grided_mean_99)
 
 
-                ccsignal_array = np.array([ds['tasmean'].values for ds in ccsignal_predictand])
-                data_to_plot.append(ccsignal_array)
-                ccsignal_array_99 = np.array([ds['tasmean'].values for ds in ccsignal_predictand_99])
-                data_to_plot_99.append(ccsignal_array_99)
+    #             ccsignal_array = np.array([ds['tasmean'].values for ds in ccsignal_predictand])
+    #             data_to_plot.append(ccsignal_array)
+    #             ccsignal_array_99 = np.array([ds['tasmean'].values for ds in ccsignal_predictand_99])
+    #             data_to_plot_99.append(ccsignal_array_99)
 
-            ax = ax1.twiny() if i > 0 else ax1  # Crear ejes adicionales solo para Medium y Long
-            color = colors[i]
-            bplot = ax.boxplot(data_to_plot, positions=np.arange(len(predictands)) * 2.0-0.25, widths=0.35, 
-                            patch_artist=True, boxprops=dict(facecolor=color), vert=False, whis=[5, 95])
-            ax.set_xlim(xmin[1], xmax[1])
-            ax.set_xticks([]) if i>0 else ax.set_xticks(np.linspace(xmin[0], xmax[0], 10))
-            ax.xaxis.set_ticks_position('top')
+    #         ax = ax1.twiny() if i > 0 else ax1  # Crear ejes adicionales solo para Medium y Long
+    #         color = colors[i]
+    #         bplot = ax.boxplot(data_to_plot, positions=np.arange(len(predictands)) * 2.0-0.25, widths=0.35, 
+    #                         patch_artist=True, boxprops=dict(facecolor=color), vert=False, whis=[5, 95])
+    #         ax.set_xlim(xmin[1], xmax[1])
+    #         ax.set_xticks([]) if i>0 else ax.set_xticks(np.linspace(xmin[0], xmax[0], 10))
+    #         ax.xaxis.set_ticks_position('top')
 
-            ax_99 = ax1.twiny() if i > 0 else ax1  # Crear ejes adicionales solo para Medium y Long
-            bplot = ax_99.boxplot(data_to_plot_99, positions=np.arange(len(predictands)) * 2.0+0.25, widths=0.35, 
-                            patch_artist=True, boxprops=dict(facecolor=color), vert=False, whis=[5, 95])
-            ax_99.set_xlim(xmin[1], xmax[1])
+    #         ax_99 = ax1.twiny() if i > 0 else ax1  # Crear ejes adicionales solo para Medium y Long
+    #         bplot = ax_99.boxplot(data_to_plot_99, positions=np.arange(len(predictands)) * 2.0+0.25, widths=0.35, 
+    #                         patch_artist=True, boxprops=dict(facecolor=color), vert=False, whis=[5, 95])
+    #         ax_99.set_xlim(xmin[1], xmax[1])
             
-            ax_99.set_xticks([]) if i>0 else ax_99.set_xticks(np.linspace(xmin[0], xmax[0], 10))
-            ax_99.xaxis.set_ticks_position('bottom')
+    #         ax_99.set_xticks([]) if i>0 else ax_99.set_xticks(np.linspace(xmin[0], xmax[0], 10))
+    #         ax_99.xaxis.set_ticks_position('bottom')
             
-            # Asignar la etiqueta del eje X solo para el primer eje (ax1)
-            if i == 0:
-                ax.set_xlabel('CC Signal Tasmean')
-            # Crear un handle de la leyenda solo en la primera iteración para cada conjunto de datos
-            legend_handles.append(bplot["boxes"][0])
+    #         # Asignar la etiqueta del eje X solo para el primer eje (ax1)
+    #         if i == 0:
+    #             ax.set_xlabel('CC Signal Tasmean')
+    #         # Crear un handle de la leyenda solo en la primera iteración para cada conjunto de datos
+    #         legend_handles.append(bplot["boxes"][0])
 
-        # Etiquetas del eje Y solo en ax1
-        ax1.set_yticks(np.arange(len(predictands)) * 2.0)
-        ax1.set_yticklabels(predictands)
+    #     # Etiquetas del eje Y solo en ax1
+    #     ax1.set_yticks(np.arange(len(predictands)) * 2.0)
+    #     ax1.set_yticklabels(predictands)
 
-        # Agregar una leyenda para cada boxplot
-        plt.legend(legend_handles, names, loc='lower right', prop={'size': 10}, frameon=False)
+    #     # Agregar una leyenda para cada boxplot
+    #     plt.legend(legend_handles, names, loc='lower right', prop={'size': 10}, frameon=False)
 
-        # Guardar el gráfico
-        plt.savefig(f'{FIGS_PATH}/{figName}.png', bbox_inches='tight')
-        plt.savefig(f'{FIGS_PATH}/{figName}.pdf', bbox_inches='tight')
+    #     # Guardar el gráfico
+    #     plt.savefig(f'{FIGS_PATH}/{figName}.png', bbox_inches='tight')
+    #     plt.savefig(f'{FIGS_PATH}/{figName}.pdf', bbox_inches='tight')
 
     print("Figura 3 completada!")
     
@@ -762,7 +771,8 @@ if '4' in FIGS:
     fig, axes = plt.subplots(4, 5, figsize=(20, 12), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
 
     continuousCMAP = plt.get_cmap('hot_r')
-    discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, 10)))
+    #discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, 10)))
+    discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, 11)[1:]))
 
     # vmin = 1 if METRIC != '99Percentile' else 3
     # vmax = 11 if METRIC != '99Percentile' else 13
@@ -833,14 +843,14 @@ if '4' in FIGS:
 
         for j, (metric, metric_data) in enumerate(predictand_data.items()):
 
-            vmin = 2
-            vmax = 12
+            vmin = 3
+            vmax = 13
 
             ax = axes[j, i]
             if j == 0:
                 ax.set_title(f'{predictand_name.capitalize()}', fontsize=16)
             if i == 0:
-                ax.text(-0.07, 0.55, f'{metric.capitalize()}-{number_min_max[metric]}', va='bottom', ha='center',
+                ax.text(-0.07, 0.55, f'{metric.capitalize()}', va='bottom', ha='center',
                     rotation='vertical', rotation_mode='anchor',
                     transform=ax.transAxes, fontsize=16)
 
@@ -851,7 +861,7 @@ if '4' in FIGS:
             im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
                                 dataToPlot,
                                 transform=ccrs.PlateCarree(),
-                                cmap=discreteCMAP,
+                                cmap=discreteCMAPnoWhite,
                                 vmin=vmin, vmax=vmax)
                                 #norm=BoundaryNorm(bounds, cmap.N))
             
@@ -875,7 +885,8 @@ if '4' in FIGS:
     fig, axes = plt.subplots(4, 5, figsize=(20, 12), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
 
     continuousCMAP = plt.get_cmap('hot_r')
-    discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, 10)))
+    #discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, 10)))
+    discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, 11)[1:]))
 
     # vmin = 1 if METRIC != '99Percentile' else 3
     # vmax = 11 if METRIC != '99Percentile' else 13
@@ -935,7 +946,7 @@ if '4' in FIGS:
             if j == 0:
                 ax.set_title(f'{predictand_name.capitalize()}', fontsize=16)
             if i == 0:
-                ax.text(-0.07, 0.55, f'{metric.capitalize()}-{number_min_max[metric]}', va='bottom', ha='center',
+                ax.text(-0.07, 0.55, f'{metric.capitalize()}', va='bottom', ha='center',
                     rotation='vertical', rotation_mode='anchor',
                     transform=ax.transAxes, fontsize=16)
 
@@ -946,7 +957,7 @@ if '4' in FIGS:
             im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
                                 dataToPlot,
                                 transform=ccrs.PlateCarree(),
-                                cmap=discreteCMAP,
+                                cmap=discreteCMAPnoWhite,
                                 vmin=vmin, vmax=vmax)
                                 #norm=BoundaryNorm(bounds, cmap.N))
             number_patch_mean = Patch(color='white', edgecolor='black', label=f'{number_min_max[metric]}')
