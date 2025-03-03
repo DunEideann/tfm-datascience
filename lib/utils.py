@@ -69,19 +69,18 @@ def getMetricsTemp(data, data_reference = None, var = 'tasmean', short = False):
     val_st_interannual = data.groupby('time.year').std(dim = 'time').mean(dim='year')#.resample(time = 'YE')
     val_99 = data.groupby('time.year').quantile(0.99, dim = 'time').mean(dim='year')
     val_1 = data.groupby('time.year').quantile(0.01, dim='time').mean(dim='year')
-    over30 = data[var].where(data[var] >= 30).resample(time='YS').count(dim='time').mean(dim='time').to_dataset(name=var)
-    over30 = over30.where(over30 != 0, np.nan)
-    over40 = data[var].where(data[var] >= 40).resample(time='YS').count(dim='time').mean(dim='time').to_dataset(name=var)
-    over40 = over40.where(over40 != 0, np.nan)
-    mean_max_mean = data.resample(time = 'YE').max(dim='time').mean(dim='time')
-    crps = crps_ensemble(data, data_reference) if data_reference!=None else 0
+    if short == False:
+        over30 = data[var].where(data[var] >= 30).resample(time='YS').count(dim='time').mean(dim='time').to_dataset(name=var)
+        over30 = over30.where(over30 != 0, np.nan)
+        over40 = data[var].where(data[var] >= 40).resample(time='YS').count(dim='time').mean(dim='time').to_dataset(name=var)
+        over40 = over40.where(over40 != 0, np.nan)
+        mean_max_mean = data.resample(time = 'YE').max(dim='time').mean(dim='time')
+        crps = crps_ensemble(data, data_reference) if data_reference!=None else 0
 
     if short:
         response = {
         'mean': val_mean,
-        '99quantile': val_99,
-        '1quantile': val_1,
-        'std': val_st
+        '99quantile': val_99
         }
     else:
         response = {
@@ -1128,7 +1127,7 @@ def standarBiasCorrection(dataset, hist_metric, future_metric, observational_met
                 future_mean.sel(month=mes),
                 observational_mean.sel(month=mes),
                 observational_std.sel(month=mes),
-                mes)[var]
+                mes)[var] # No estoy operando varias veces sobre la variable? O al menos todas a la vez para solo quedarme con 1?
 
     return dataset_corrected
 
@@ -1250,7 +1249,7 @@ def multiMapPerSeason(data_to_plot, metrics, plot_metrics, FIGS_PATH, extra_path
 
 def graphsBaseGCM(objective, reference, save_path, color_extended=False):
     diff = {}
-    del objective['trend']
+    #del objective['trend']
     #del reference['trend']
     for key in objective.keys():
         if key == 'std':
@@ -1265,6 +1264,10 @@ def graphsBaseGCM(objective, reference, save_path, color_extended=False):
         list_colors = ['royalblue', 'cyan', 'mediumspringgreen', 'green', 'yellow', 'orange']
     else:
         list_colors = ['royalblue', 'cyan', 'yellow', 'orange']
+
+    continuousCMAP = plt.get_cmap('hot_r')
+    #discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, 10)))
+    discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, 11)[1:]))
     cmap = (ListedColormap(list_colors)
             .with_extremes(over='red', under='blue'))
 
@@ -1297,7 +1300,7 @@ def graphsBaseGCM(objective, reference, save_path, color_extended=False):
 
             # Mostrar la imagen en el subgráfico actual
             im = ax.pcolormesh(lon, lat, data,
-                               transform=ccrs.PlateCarree(), cmap=cmap,
+                               transform=ccrs.PlateCarree(), cmap=discreteCMAPnoWhite,
                                norm=BoundaryNorm(bounds, cmap.N), shading='auto')
 
             # Agregar una barra de color individual
@@ -1349,7 +1352,7 @@ def getDataset(datasets, metric, var=None):
 
     return new_dataset
 
-def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, period, extra = '', extension='pdf', noWhite=False, colorModifier=[], numLevels=10, ticksX=6, numberStatistics=4):
+def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, period, extra = '', extension='pdf', noWhite=False, colorModifier=[], numLevels=10, ticksX=6, numberStatistics=2):
            
 
     continuousCMAP = plt.get_cmap('hot_r')
@@ -1360,22 +1363,15 @@ def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, pe
 
     discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
 
-    colors = list(discreteCMAP.colors)
-    for newColor in colorModifier:
-        colors[newColor[0]] = newColor[1]
-    discreteCMAP = ListedColormap(colors)
-    if vmin[-1] < 1:
-        discreteCMAPnoWhite = ListedColormap(colors)
-
     start_time = time()
     #for period, period_data in datasets_metrics.items():
     nRows, nCols = numberStatistics, len(datasets_metrics)
     print(f"ros y cols: {nRows}-{nCols}")
-    fig, axes = plt.subplots(nRows, nCols, figsize=(20, nRows*3 +(nRows-4)), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+    fig, axes = plt.subplots(nRows, nCols, figsize=(5*nCols, 5*numberStatistics), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
     for i, (predictand_name, predictand_data) in enumerate(datasets_metrics.items()): 
         #Cambiar a un diccionario TODO
         for j, (metric, metric_data) in enumerate(predictand_data.items()):
-
+            print(f"j: {j} - i: {i}")
             ax = axes[j, i]
             if j == 0:
                 ax.set_title(f'{predictand_name.capitalize()}', fontsize=16)
@@ -1391,12 +1387,12 @@ def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, pe
             im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
                                 dataToPlot,
                                 transform=ccrs.PlateCarree(),
-                                cmap=discreteCMAP if metric != 'over30' else discreteCMAPnoWhite,
+                                cmap=discreteCMAPnoWhite,
                                 vmin=vmin[j], vmax=vmax[j])
                                 #norm=BoundaryNorm(bounds, cmap.N))
 
             if i == 0:
-                cax = fig.add_axes([0.125, 0.733 - (j * 0.225), 0.776, 0.02]) #DIST DESDE IZQUIERDA/DIST DESDE ABAJO/LARDO HORI/LARGO/VERT
+                cax = fig.add_axes([0.125, 0.510 - (j * 0.443), 0.776, 0.02]) #DIST DESDE IZQUIERDA/DIST DESDE ABAJO/LARDO HORI/LARGO/VERT
                 cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform', orientation='horizontal')#, extend='both', extendfrac='auto', )
                 cbar.set_ticks(np.linspace(vmin[j], vmax[j], ticksX))
                 cbar.ax.tick_params(labelsize=16)
@@ -1407,6 +1403,89 @@ def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, pe
 
     total_time = time() - start_time
     print(f"El código de graficos de {pred_type} se ejecutó en {total_time:.2f} segundos.")
+
+
+def stdGraphs(std_metrics, figs_path, vmin, vmax, pred_type, fig_num, period, extra = '', extension='pdf', numLevels=10, ticksX=6, numberStatistics=2):
+    continuousCMAP = plt.get_cmap('cool')
+    #discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
+    discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
+    nRows, nCols = numberStatistics, len(std_metrics)
+    fig, axes = plt.subplots(nRows, nCols, figsize=(5*nCols, 5*numberStatistics), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+    for i, (group_name, group_data) in enumerate(std_metrics.items()): 
+        #Cambiar a un diccionario TODO
+        for j, (metric, metric_data) in enumerate(group_data.items()):
+
+            if nCols == 1:
+                ax = axes[j]
+            else:
+                ax = axes[j, i]
+            if j == 0:
+                ax.set_title(f'{group_name.capitalize()}', fontsize=16)
+            if i == 0:
+                ax.text(-0.07, 0.55, graph_dict[metric], va='bottom', ha='center',
+                    rotation='vertical', rotation_mode='anchor',
+                    transform=ax.transAxes, fontsize=16)
+    
+            ax.coastlines(resolution='10m')
+            
+
+            dataToPlot = metric_data['tasmean']
+            im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
+                                dataToPlot,
+                                transform=ccrs.PlateCarree(),
+                                cmap=discreteCMAPnoWhite,
+                                vmin=vmin[j], vmax=vmax[j])
+                                #norm=BoundaryNorm(bounds, cmap.N))
+
+            if i == 0:
+                cax = fig.add_axes([0.125, 0.510 - (j * 0.443), 0.775, 0.02]) #DIST DESDE IZQUIERDA/DIST DESDE ABAJO/LARDO HORI/LARGO/VERT
+                cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform', orientation='horizontal')#, extend='both', extendfrac='auto', )
+                cbar.set_ticks(np.linspace(vmin[j], vmax[j], ticksX))
+                cbar.ax.tick_params(labelsize=16)
+
+    plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
+    plt.savefig(f'{figs_path}/fig{fig_num}_metrics_{pred_type}_{period}{extra}.{extension}', bbox_inches='tight')
+    plt.close()
+
+def metricStdGraphs(whole_metrics, figs_path, vmin, vmax, pred_type, fig_num, period, extra = '', extension='pdf', numLevels=10, ticksX=6, numberStatistics=2):
+    continuousCMAP = plt.get_cmap('hot_r')
+    discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
+    continuousCMAPStd = plt.get_cmap('cool')
+    discreteCMAPnoWhiteStd = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
+    nRows, nCols = numberStatistics, len(whole_metrics)
+    fig, axes = plt.subplots(nRows, nCols, figsize=(5*numberStatistics, 5*nCols), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+    for i, (group_name, group_data) in enumerate(whole_metrics.items()): 
+        #Cambiar a un diccionario TODO
+        for j, (metric, metric_data) in enumerate(group_data.items()):
+
+            ax = axes[j, i]
+            if j == 0:
+                ax.set_title(f'{group_name.capitalize()}', fontsize=16)
+            if i == 0:
+                ax.text(-0.07, 0.55, graph_dict[metric], va='bottom', ha='center',
+                    rotation='vertical', rotation_mode='anchor',
+                    transform=ax.transAxes, fontsize=16)
+    
+            ax.coastlines(resolution='10m')
+            
+
+            dataToPlot = metric_data['tasmean']
+            im = ax.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
+                                dataToPlot,
+                                transform=ccrs.PlateCarree(),
+                                cmap=discreteCMAPnoWhite if i<5 else discreteCMAPnoWhiteStd,
+                                vmin=vmin[j], vmax=vmax[j])
+                                #norm=BoundaryNorm(bounds, cmap.N))
+
+            if i == 0:
+                cax = fig.add_axes([0.125, 0.510 - (j * 0.443), 0.775, 0.02]) #DIST DESDE IZQUIERDA/DIST DESDE ABAJO/LARDO HORI/LARGO/VERT
+                cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform', orientation='horizontal')#, extend='both', extendfrac='auto', )
+                cbar.set_ticks(np.linspace(vmin[j], vmax[j], ticksX))
+                cbar.ax.tick_params(labelsize=16)
+
+    plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.002, hspace=0.002)
+    plt.savefig(f'{figs_path}/fig{fig_num}_metrics_{pred_type}_{period}{extra}.{extension}', bbox_inches='tight')
+    plt.close()
 
 
 def efemerideGraphMultiplie(datasets_metrics_1, datasets_metrics_2, figs_path, vmin, vmax, pred_type, fig_num, extension = 'pdf'):
