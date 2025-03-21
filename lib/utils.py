@@ -14,9 +14,9 @@ from xskillscore import crps_ensemble
 
 graph_dict = {
         'mean': 'Mean',
-        '99quantile': 'Percentile 99',
-        '1quantile': 'Percentile 1',
-        'std': 'Standar Deviation',
+        '99quantile': '99th',
+        '1quantile': '1st',
+        'std': 'Std',
         'trend': 'Trend',
         'over30': 'Days Over 30',
         'over40': 'Days Over 40',
@@ -1352,7 +1352,7 @@ def getDataset(datasets, metric, var=None):
 
     return new_dataset
 
-def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, period, extra = '', extension='pdf', noWhite=False, colorModifier=[], numLevels=10, ticksX=6, numberStatistics=2):
+def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, period, extra = '', extension='pdf', noWhite=False, colorModifier=[], numLevels=10, ticksX=6, numberStatistics=2, x_map=None):
            
 
     continuousCMAP = plt.get_cmap('hot_r')
@@ -1367,14 +1367,14 @@ def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, pe
     #for period, period_data in datasets_metrics.items():
     nRows, nCols = numberStatistics, len(datasets_metrics)
     print(f"ros y cols: {nRows}-{nCols}")
-    fig, axes = plt.subplots(nRows, nCols, figsize=(5*nCols, 5*numberStatistics), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+    fig, axes = plt.subplots(nRows, nCols, figsize=(4*nCols, 3*nRows), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
     for i, (predictand_name, predictand_data) in enumerate(datasets_metrics.items()): 
         #Cambiar a un diccionario TODO
         for j, (metric, metric_data) in enumerate(predictand_data.items()):
-            print(f"j: {j} - i: {i}")
+            print(f"j: {j} - i: {i} - {metric}")
             ax = axes[j, i]
             if j == 0:
-                ax.set_title(f'{predictand_name.capitalize()}', fontsize=16)
+                ax.set_title(f'{x_map[predictand_name] if x_map else predictand_name}', fontsize=16)
             if i == 0:
                 ax.text(-0.07, 0.55, graph_dict[metric], va='bottom', ha='center',
                     rotation='vertical', rotation_mode='anchor',
@@ -1392,7 +1392,12 @@ def metricsGraph(datasets_metrics, figs_path, vmin, vmax, pred_type, fig_num, pe
                                 #norm=BoundaryNorm(bounds, cmap.N))
 
             if i == 0:
-                cax = fig.add_axes([0.125, 0.510 - (j * 0.443), 0.776, 0.02]) #DIST DESDE IZQUIERDA/DIST DESDE ABAJO/LARDO HORI/LARGO/VERT
+                if nRows == 1:
+                    cax = fig.add_axes([0.125, 0.08, 0.776, 0.02])
+                elif nRows == 2:
+                    cax = fig.add_axes([0.125, 0.510 - (j * 0.443), 0.775, 0.02]) #DIST DESDE IZQUIERDA/DIST DESDE ABAJO/LARDO HORI/LARGO/VERT
+                else:
+                    cax = fig.add_axes([0.125, 0.655 - (j * 0.305), 0.776, 0.02])
                 cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform', orientation='horizontal')#, extend='both', extendfrac='auto', )
                 cbar.set_ticks(np.linspace(vmin[j], vmax[j], ticksX))
                 cbar.ax.tick_params(labelsize=16)
@@ -1410,7 +1415,7 @@ def stdGraphs(std_metrics, figs_path, vmin, vmax, pred_type, fig_num, period, ex
     #discreteCMAP = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels)))
     discreteCMAPnoWhite = ListedColormap(continuousCMAP(np.linspace(0, 1, numLevels+1)[1:]))
     nRows, nCols = numberStatistics, len(std_metrics)
-    fig, axes = plt.subplots(nRows, nCols, figsize=(5*nCols, 5*numberStatistics), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+    fig, axes = plt.subplots(nRows, nCols, figsize=(4*nCols, 3*nRows), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
     for i, (group_name, group_data) in enumerate(std_metrics.items()): 
         #Cambiar a un diccionario TODO
         for j, (metric, metric_data) in enumerate(group_data.items()):
@@ -1420,11 +1425,11 @@ def stdGraphs(std_metrics, figs_path, vmin, vmax, pred_type, fig_num, period, ex
             else:
                 ax = axes[j, i]
             if j == 0:
-                ax.set_title(f'{group_name.capitalize()}', fontsize=16)
-            if i == 0:
-                ax.text(-0.07, 0.55, graph_dict[metric], va='bottom', ha='center',
-                    rotation='vertical', rotation_mode='anchor',
-                    transform=ax.transAxes, fontsize=16)
+                ax.set_title(f'Std', fontsize=16)
+            # if i == 0:
+            #     ax.text(-0.07, 0.55, 'Standard Deviation', va='bottom', ha='center',
+            #         rotation='vertical', rotation_mode='anchor',
+            #         transform=ax.transAxes, fontsize=16)
     
             ax.coastlines(resolution='10m')
             
@@ -1438,7 +1443,12 @@ def stdGraphs(std_metrics, figs_path, vmin, vmax, pred_type, fig_num, period, ex
                                 #norm=BoundaryNorm(bounds, cmap.N))
 
             if i == 0:
-                cax = fig.add_axes([0.125, 0.510 - (j * 0.443), 0.775, 0.02]) #DIST DESDE IZQUIERDA/DIST DESDE ABAJO/LARDO HORI/LARGO/VERT
+                if nRows == 1:
+                    cax = fig.add_axes([0.125, 0.08, 0.776, 0.02])
+                elif nRows == 2:
+                    cax = fig.add_axes([0.125, 0.510 - (j * 0.443), 0.775, 0.02]) #DIST DESDE IZQUIERDA/DIST DESDE ABAJO/LARDO HORI/LARGO/VERT
+                else:
+                    cax = fig.add_axes([0.125, 0.655 - (j * 0.305), 0.776, 0.02])
                 cbar = plt.colorbar(im, cax, pad=0.05, spacing='uniform', orientation='horizontal')#, extend='both', extendfrac='auto', )
                 cbar.set_ticks(np.linspace(vmin[j], vmax[j], ticksX))
                 cbar.ax.tick_params(labelsize=16)
