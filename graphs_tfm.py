@@ -241,98 +241,98 @@ for predictand_name in predictands:
 #     fig_num += Decimal('0.1')
 
 # FIGURA 8:
-obs_hist = {'annual': {}, 'spring': {}, 'summer': {}, 'autumn': {}, 'winter': {}}
-obs_hist_metrics = {'annual': {}, 'spring': {}, 'summer': {}, 'autumn': {}, 'winter': {}}
-diff_metrics = {'annual': {}, 'spring': {}, 'summer': {}, 'autumn': {}, 'winter': {}}
-for predictand_name in predictands:
-    obs_hist['annual'][predictand_name] = obs[predictand_name].sel(time=slice(*(hist_baseline[0], hist_baseline[1])))
-    obs_hist_metrics['annual'][predictand_name] = utils.getMetricsTemp(obs_hist['annual'][predictand_name], short = True)
-    diff_metrics['annual'][predictand_name] = {
-            key: long_metrics['annual'][predictand_name][key]-obs_hist_metrics['annual'][predictand_name][key] 
-                if key != 'std' 
-                else long_metrics['annual'][predictand_name][key]/obs_hist_metrics['annual'][predictand_name][key] 
-                for key in metrics}
-    for season_name, months in seasons.items():
-        obs_hist[season_name][predictand_name] = obs_hist['annual'][predictand_name].isel(time = (obs_hist['annual'][predictand_name].time.dt.season == months))
-        obs_hist_metrics[season_name][predictand_name] = utils.getMetricsTemp(obs_hist[season_name][predictand_name], short = True)
-        diff_metrics[season_name][predictand_name] = {
-            key: long_metrics[season_name][predictand_name][key]-obs_hist_metrics[season_name][predictand_name][key] 
-                if key != 'std' 
-                else long_metrics[season_name][predictand_name][key]/obs_hist_metrics[season_name][predictand_name][key] 
-                for key in metrics}
+# obs_hist = {'annual': {}, 'spring': {}, 'summer': {}, 'autumn': {}, 'winter': {}}
+# obs_hist_metrics = {'annual': {}, 'spring': {}, 'summer': {}, 'autumn': {}, 'winter': {}}
+# diff_metrics = {'annual': {}, 'spring': {}, 'summer': {}, 'autumn': {}, 'winter': {}}
+# for predictand_name in predictands:
+#     obs_hist['annual'][predictand_name] = obs[predictand_name].sel(time=slice(*(hist_baseline[0], hist_baseline[1])))
+#     obs_hist_metrics['annual'][predictand_name] = utils.getMetricsTemp(obs_hist['annual'][predictand_name], short = True)
+#     diff_metrics['annual'][predictand_name] = {
+#             key: long_metrics['annual'][predictand_name][key]-obs_hist_metrics['annual'][predictand_name][key] 
+#                 if key != 'std' 
+#                 else long_metrics['annual'][predictand_name][key]/obs_hist_metrics['annual'][predictand_name][key] 
+#                 for key in metrics}
+#     for season_name, months in seasons.items():
+#         obs_hist[season_name][predictand_name] = obs_hist['annual'][predictand_name].isel(time = (obs_hist['annual'][predictand_name].time.dt.season == months))
+#         obs_hist_metrics[season_name][predictand_name] = utils.getMetricsTemp(obs_hist[season_name][predictand_name], short = True)
+#         diff_metrics[season_name][predictand_name] = {
+#             key: long_metrics[season_name][predictand_name][key]-obs_hist_metrics[season_name][predictand_name][key] 
+#                 if key != 'std' 
+#                 else long_metrics[season_name][predictand_name][key]/obs_hist_metrics[season_name][predictand_name][key] 
+#                 for key in metrics}
 
-fig_num = 8
-for period, data_metrics in diff_metrics.items(): 
-    utils.metricsGraph(data_metrics, figs_path=FIGS_PATH, vmin=[1, 2, 0, 0.6, 1], vmax=[11, 17, 10, 1.6, 201], pred_type='climate_signal', fig_num = fig_num, period = period)#, extension='png')
-    fig_num += Decimal('0.1')
+# fig_num = 8
+# for period, data_metrics in diff_metrics.items(): 
+#     utils.metricsGraph(data_metrics, figs_path=FIGS_PATH, vmin=[1, 2, 0, 0.6, 1], vmax=[11, 17, 10, 1.6, 201], pred_type='climate_signal', fig_num = fig_num, period = period)#, extension='png')
+#     fig_num += Decimal('0.1')
 
 
 
 # FIGURA EXTRA:
-# past_timeline = ('1970-01-01', '2020-12-31')
-# hist_baseline = ('1995-01-01', '2014-12-31') #95-14
-# future_1 = ('2021-01-01', '2040-12-31')
-# future_2 = ('2041-01-01', '2060-12-31')
-# future_3 = ('2081-01-01', '2100-12-31') 
-# future_4 = ('2061-01-01', '2080-12-31')
-# futures = [future_1, future_2, future_3, future_4]
-# main_scenerio = 'ssp585'
+past_timeline = ('1970-01-01', '2020-12-31')
+hist_baseline = ('1995-01-01', '2014-12-31') #95-14
+future_1 = ('2021-01-01', '2040-12-31')
+future_2 = ('2041-01-01', '2060-12-31')
+future_3 = ('2081-01-01', '2100-12-31') 
+future_4 = ('2061-01-01', '2080-12-31')
+futures = [future_1, future_2, future_3, future_4]
+main_scenerio = 'ssp585'
 
-# obs2 = {}
-# obs_temp = {}
-# gcm_preds = {}
-# hist_gcm = {}
-# hist_gcm_mean = {}
-# hist_gcm_mean_flat = {}
+obs2 = {}
+obs_temp = {}
+gcm_preds = {}
+hist_gcm = {}
+hist_gcm_mean = {}
+hist_gcm_mean_flat = {}
 
-# for predictand_name in predictands:
+for predictand_name in predictands:
 
-#     gcms_futures = []
-#     modelName = f'DeepESD_tas_{predictand_name}' 
+    gcms_futures = []
+    modelName = f'DeepESD_tas_{predictand_name}' 
 
-#     obs2[predictand_name] = utils.getPredictand(f'{DATA_PATH_PREDICTANDS_SAVE}', predictand_name, 'tasmean')
-#     obs_temp[predictand_name] = obs2[predictand_name].sel(time=slice(*(yearsTrain[0], yearsTest[1])))
-#     obs2[predictand_name] = utils.maskData(
-#                 path = f'{DATA_PATH_PREDICTANDS_SAVE}AEMET_0.25deg/AEMET_0.25deg_tasmean_1951-2022.nc',
-#                 var='tasmean',
-#                 to_slice=(yearsTrain[0], yearsTest[1]),
-#                 objective = obs2[predictand_name].sel(time=slice(*(past_timeline[0], past_timeline[1]))),
-#                 secondGrid = obs_temp[predictand_name])
+    obs2[predictand_name] = utils.getPredictand(f'{DATA_PATH_PREDICTANDS_SAVE}', predictand_name, 'tasmean')
+    obs_temp[predictand_name] = obs2[predictand_name].sel(time=slice(*(yearsTrain[0], yearsTest[1])))
+    obs2[predictand_name] = utils.maskData(
+                path = f'{DATA_PATH_PREDICTANDS_SAVE}AEMET_0.25deg/AEMET_0.25deg_tasmean_1951-2022.nc',
+                var='tasmean',
+                to_slice=(yearsTrain[0], yearsTest[1]),
+                objective = obs2[predictand_name].sel(time=slice(*(past_timeline[0], past_timeline[1]))),
+                secondGrid = obs_temp[predictand_name])
     
-#     for future in futures:
-#         gcms_futures.append(xr.open_dataset(f'{PREDS_PATH}GCM/predGCM_{modelName}_{GCM_NAME}_{main_scenerio}_{future[0]}-{future[1]}.nc'))
-#     gcm_preds[predictand_name] = xr.merge(gcms_futures)
-#     hist_gcm[predictand_name] = xr.merge([obs2[predictand_name], gcm_preds[predictand_name]])
-#     hist_gcm_mean[predictand_name] = hist_gcm[predictand_name].resample(time = 'YE').mean()
-#     hist_gcm_mean[predictand_name] = hist_gcm_mean[predictand_name].mean(dim=['lat', 'lon'])#resample(time='1Y')
-#     hist_gcm_mean_flat[predictand_name] = hist_gcm_mean[predictand_name].tasmean.values.ravel()
-#     hist_gcm_mean_flat[predictand_name] = hist_gcm_mean_flat[predictand_name][~np.isnan(hist_gcm_mean_flat[predictand_name])]
+    for future in futures:
+        gcms_futures.append(xr.open_dataset(f'{PREDS_PATH}GCM/predGCM_{modelName}_{GCM_NAME}_{main_scenerio}_{future[0]}-{future[1]}.nc'))
+    gcm_preds[predictand_name] = xr.merge(gcms_futures)
+    hist_gcm[predictand_name] = xr.merge([obs2[predictand_name], gcm_preds[predictand_name]])
+    hist_gcm_mean[predictand_name] = hist_gcm[predictand_name].resample(time = 'YE').mean()
+    hist_gcm_mean[predictand_name] = hist_gcm_mean[predictand_name].mean(dim=['lat', 'lon'])#resample(time='1Y')
+    hist_gcm_mean_flat[predictand_name] = hist_gcm_mean[predictand_name].tasmean.values.ravel()
+    hist_gcm_mean_flat[predictand_name] = hist_gcm_mean_flat[predictand_name][~np.isnan(hist_gcm_mean_flat[predictand_name])]
 
-# # Crear una figura y un conjunto de ejes
-# figName = f'histogramFull'
-# plt.figure(figsize=(12, 8))
+# Crear una figura y un conjunto de ejes
+figName = f'histogramFull'
+plt.figure(figsize=(12, 8))
 
-# # Iterar sobre cada dataset en el diccionario
-# for key, dataset in hist_gcm_mean.items():
-#     # Extraer los valores de 'tasmean'
-#     tasmean_values = dataset['tasmean'].values
-#     # Extraer los años de la coordenada 'time'
-#     years = dataset['time'].dt.year
+# Iterar sobre cada dataset en el diccionario
+for key, dataset in hist_gcm_mean.items():
+    # Extraer los valores de 'tasmean'
+    tasmean_values = dataset['tasmean'].values
+    # Extraer los años de la coordenada 'time'
+    years = dataset['time'].dt.year
 
-#     # Graficar los valores de 'tasmean' contra los años
-#     plt.plot(years, tasmean_values, label=key)
+    # Graficar los valores de 'tasmean' contra los años
+    plt.plot(years, tasmean_values, label=key)
 
-# # Añadir una línea punteada vertical en el año 2021
-# plt.axvline(x=2021, color='r', linestyle='--', linewidth=1)
+# Añadir una línea punteada vertical en el año 2021
+plt.axvline(x=2021, color='r', linestyle='--', linewidth=1)
 
-# # Configurar etiquetas y título
-# plt.xlabel('Year')
-# plt.ylabel('Tasmean')
-# plt.legend(loc='best')  # Añadir la leyenda
+# Configurar etiquetas y título
+plt.xlabel('Year')
+plt.ylabel('Tasmean')
+plt.legend(loc='best')  # Añadir la leyenda
 
-# # Mostrar el gráfico
-# plt.savefig(f'{FIGS_PATH}/{figName}.png', bbox_inches='tight')
-# plt.close()
+# Mostrar el gráfico
+plt.savefig(f'{FIGS_PATH}/{figName}.png', bbox_inches='tight')
+plt.close()
 
 
 

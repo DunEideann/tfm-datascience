@@ -193,11 +193,11 @@ def getGraphsTemp(val_metrics, pred_metrics, season_name, folder_path, pred_name
     if not os.path.exists(f'{folder_path}{pred_name}'):
         os.makedirs(f'{folder_path}{pred_name}')
 
-    __graphTrend(val_metrics, season_name, folder_path, pred_name,'real')
-    __graphTrend(pred_metrics, season_name, folder_path, pred_name, 'pred')
+    # __graphTrend(val_metrics, season_name, folder_path, pred_name,'real')
+    # __graphTrend(pred_metrics, season_name, folder_path, pred_name, 'pred')
 
-    # Removemos elemento para poder hacer tranquilamente una iteracino
-    del val_metrics['trend']
+    # # Removemos elemento para poder hacer tranquilamente una iteracino
+    # del val_metrics['trend']
     #Visualize the prediction for a certain day
     for key, value in val_metrics.items():
         nRows, nCols = 1, 3
@@ -208,6 +208,8 @@ def getGraphsTemp(val_metrics, pred_metrics, season_name, folder_path, pred_name
         ax.coastlines(resolution='10m')
         ax.set_title(f'Target temperature {season_name}')
 
+        print("GRAFICO!!!")
+        print(value)
         dataToPlot = value['tasmean']
         im = plt.pcolormesh(dataToPlot.coords['lon'].values, dataToPlot.coords['lat'].values,
                             dataToPlot,
@@ -976,6 +978,7 @@ def getPredictand(data_path, name, var, complete_path = None):
         predictand_path = f'{data_path}{name}/{file_name}'
     else:
         predictand_path = complete_path
+    print(f"PREDICTAND PATH: {predictand_path}")
     predictand = xr.open_dataset(predictand_path,
                                 chunks=-1, mode='r') # Near surface air temperature (daily mean)
     predictand = checkCorrectData(predictand) # Transform coordinates and dimensions if necessary

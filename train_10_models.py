@@ -10,6 +10,7 @@ from lib import utils, models, data
 import xarray as xr
 import os
 import sys
+import pickle
 from scipy import signal, stats
 #/oceano/gmeteo/users/reyess/tfm/official-code
 #/oceano/gmeteo/users/reyess/tfm/official-code
@@ -19,7 +20,7 @@ DATA_PATH_PREDICTANDS_SAVE = '/lustre/gmeteo/WORK/reyess/data/predictand/'
 FIGS_PATH = '/lustre/gmeteo/WORK/reyess/figs/'
 MODELS_PATH = '/oceano/gmeteo/users/reyess/tfm/official-code/models'
 DATA_PREDICTORS_TRANSFORMED = '/lustre/gmeteo/WORK/reyess/data/NorthAtlanticRegion_1.5degree/'
-PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/'
+PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/ensemble/'
 VARIABLES_TO_DROP = ['lon_bnds', 'lat_bnds', 'crs']
 LAT_SLICE = slice(33.5, 48.6)
 LON_SLICE = slice(-10.5, 4.6)
@@ -36,6 +37,10 @@ predictors_vars = ['t500', 't700', 't850', # Air temperature at 500, 700, 850 hP
 'v500', 'v700', 'v850', # Meridional wind component at 500, 700, 850 hPa
 'u500', 'u700', 'u850', # Zonal wind component at 500, 700, 850 hPa
 'msl'] # Mean sea level pressure (psl)
+
+# Fechas a eliminar
+fechas_a_eliminar = ["1982-02-28", "1986-02-28", "1990-02-28", "1994-02-28", "1998-02-28", "2002-02-28", "2006-02-28", "2010-02-28", "2014-02-28"]
+fechas_a_eliminar = np.array(fechas_a_eliminar, dtype="datetime64")
 
 
 # Mergiamos los datasets por la coordenada tiempo si es necesario
@@ -76,6 +81,8 @@ predictand = utils.checkUnitsTempt(predictand, 'tasmean')
 predictand = utils.removeWrongData(predictand, 'tasmean', PREDICTAND_NAME)
 predictors = predictors.reindex(lat=list(reversed(predictors.lat))) # Reordenamos la latitud del predictor para que tenga el mismo orden del predictando
 
+
+
 #Preparamos datos para entrenamiento
 # Remove days with nans in the predictor
 predictors = utils.removeNANs(grid=predictors)
@@ -87,7 +94,17 @@ y, x = utils.alignDatasets(grid1=predictand, grid2=predictors, coord='time')
 # Split into train and test set
 yearsTrain = ('1980-01-01', '2003-12-31')
 yearsTest = ('2004-01-01', '2015-12-31')
+yearsTrainTest = ('1980-01-01','2015-12-31')
 
+# CARGA DE MASCARA SI EXISTE
+file_path = f'/oceano/gmeteo/users/reyess/tfm/official-code/models-ensemble/generalMask{yearsTrainTest[0]}-{yearsTrainTest[1]}.pkl'
+if os.path.exists(file_path):
+    print(f"Existe path: {file_path}")
+    with open(file_path, 'rb') as f:
+        newMask = pickle.load(f)
+else:
+    print("No existe path")
+    newMask = None  # o lo que quieras hacer si no existe
 
 # Filtrar años en base a predictandos y ver sus NANs y los rangos de años
 xTrain = x.sel(time=slice(*yearsTrain)).load()
@@ -95,6 +112,12 @@ xTest = x.sel(time=slice(*yearsTest)).load()
 
 yTrain = y.sel(time=slice(*yearsTrain)).load()
 yTest = y.sel(time=slice(*yearsTest)).load()
+
+xTrain = xTrain.sel(time=~xTrain.time.isin(fechas_a_eliminar))
+xTest = xTest.sel(time=~xTest.time.isin(fechas_a_eliminar))
+
+yTrain = yTrain.sel(time=~yTrain.time.isin(fechas_a_eliminar))
+yTest = yTest.sel(time=~yTest.time.isin(fechas_a_eliminar))
 
 # Standardize the predictor
 meanTrain = xTrain.mean('time')
@@ -105,38 +128,21 @@ xTrainStand = (xTrain - meanTrain) / stdTrain
 xTrainStand_array = utils.toArray(xTrainStand)
 
 # Remove nans gridpoints and flatten the predictand
-baseMask = utils.obtainMask(
-    path=f'{DATA_PATH_PREDICTANDS_SAVE}AEMET_0.25deg/AEMET_0.25deg_tasmean_1951-2022.nc',
-    var='tasmean',
-    to_slice=(yearsTrain[0], yearsTest[1]))
-yTrainFlat = baseMask.flatten(grid=yTrain, var='tasmean')
-#plt.figure(); yTrain['tasmean'].mean('time').plot(); plt.savefig('./yTestPre.pdf')
+yTrainFlat = newMask.flatten(grid=yTrain, var='tasmean')
 
 # Extract the raw data from the xarray Dataset
 yTrainFlat_array = utils.toArray(yTrainFlat)
 yTrainFlat['tasmean'].values = yTrainFlat_array
-yTrainUnflatten = baseMask.unFlatten(grid=yTrainFlat, var='tasmean')
+yTrainUnflatten = newMask.unFlatten(grid=yTrainFlat, var='tasmean')
 
 
 
 # Same 
-yTestFlat = baseMask.flatten(grid=yTest, var='tasmean')
+yTestFlat = newMask.flatten(grid=yTest, var='tasmean')
 yTestFlat_array = utils.toArray(yTestFlat)
 yTestFlat['tasmean'].values = yTestFlat_array
-yTestUnflatten = baseMask.unFlatten(grid=yTestFlat, var='tasmean')
-maskToUse = baseMask
+yTestUnflatten = newMask.unFlatten(grid=yTestFlat, var='tasmean')
 
-if np.isnan(yTrainFlat_array).sum() > 0:
-    # Second security mask
-    secondMask = utils.obtainMask(grid = yTrainUnflatten, var = 'tasmean')
-    ySecondTrainFlat = secondMask.flatten(grid=yTrainUnflatten, var='tasmean')
-    yTrainFlat_array = utils.toArray(ySecondTrainFlat)
-    yTestFlat2 = secondMask.flatten(grid=yTestUnflatten, var='tasmean')
-    yTestFlat_array2 = utils.toArray(yTestFlat2)
-    yTestFlat2['tasmean'].values = yTestFlat_array2
-    yTestUnflatten = secondMask.unFlatten(grid=yTestFlat2, var='tasmean')
-    maskToUse = secondMask
-    print(f"Valores NAN en yTrain: {np.isnan(yTrainFlat_array).sum()}- Radio de nueva mascara: {secondMask.refArray.shape}/{baseMask.refArray.shape}")
 
 
 # Comenzamos entrenamiento del modelo
@@ -195,7 +201,7 @@ yPredTest = utils.predDataset(X=xTestStand_array,
                               model=model,
                               device='cpu',
                               ref=yTestUnflatten,
-                              flattener=maskToUse,
+                              flattener=newMask,
                               var='tasmean')
 
 yPredTest.to_netcdf(f'{PREDS_PATH}predTest_{modelName}.nc')
@@ -207,7 +213,7 @@ yPredTrain = utils.predDataset(X=xTrainStand_array,
                               model=model,
                               device='cpu',
                               ref=yTrainUnflatten,
-                              flattener=maskToUse,
+                              flattener=newMask,
                               var='tasmean')
 
 yPredTrain.to_netcdf(f'{PREDS_PATH}predTrain_{modelName}.nc')

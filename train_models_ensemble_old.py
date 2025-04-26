@@ -10,7 +10,6 @@ from lib import utils, models, data
 import xarray as xr
 import os
 import sys
-import pickle
 from scipy import signal, stats
 #/oceano/gmeteo/users/reyess/tfm/official-code
 #/oceano/gmeteo/users/reyess/tfm/official-code
@@ -18,7 +17,7 @@ DATA_PATH_PREDICTORS = '/lustre/gmeteo/PTICLIMA/DATA/REANALYSIS/ERA5/data_derive
 DATA_PATH_PREDICTANDS_READ = '/lustre/gmeteo/PTICLIMA/DATA/AUX/GRID_INTERCOMP/'
 DATA_PATH_PREDICTANDS_SAVE = '/lustre/gmeteo/WORK/reyess/data/predictand/'
 FIGS_PATH = '/lustre/gmeteo/WORK/reyess/figs-ensemble/'
-MODELS_PATH = '/oceano/gmeteo/users/reyess/tfm/official-code/models-ensemble/'
+MODELS_PATH = '/oceano/gmeteo/users/reyess/tfm/official-code/models-ensemble'
 DATA_PREDICTORS_TRANSFORMED = '/lustre/gmeteo/WORK/reyess/data/NorthAtlanticRegion_1.5degree/'
 PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/ensemble/'
 VARIABLES_TO_DROP = ['lon_bnds', 'lat_bnds', 'crs']
@@ -76,62 +75,6 @@ xValidEnsemble = []
 yValidEnsemble = []
 aemet = None
 chelsa = None
-
-# Split into train and test set
-yearsTrain = ('1980-01-01', '2003-12-31')
-yearsTest = ('2004-01-01', '2015-12-31')
-yearsTrainTest = ('1980-01-01','2015-12-31')
-
-# CARGA DE MASCARA SI EXISTE
-file_path = f'{MODELS_PATH}generalMask{yearsTrainTest[0]}-{yearsTrainTest[1]}.pkl'
-if os.path.exists(file_path):
-    print(f"Existe path: {file_path}")
-    with open(file_path, 'rb') as f:
-        newMask = pickle.load(f)
-else:
-    print("No existe path")
-    newMask = None  # o lo que quieras hacer si no existe
-
-
-# CARGA DE NUEVA MASCARA SI NO EXISTE
-if newMask == None:
-    oldMask = None
-    for predictand_name in ENSEMBLE_PREDICTAND_NAME:
-        file_name = utils.getFileName(DATA_PATH_PREDICTANDS_SAVE, predictand_name, keyword = 'tasmean')
-
-        predictand_path = f'{DATA_PATH_PREDICTANDS_SAVE}{predictand_name}/{file_name}'
-        predictand = xr.open_dataset(predictand_path,
-                                    chunks=-1) # Near surface air temperature (daily mean)
-        predictand = utils.checkCorrectData(predictand) # Transform coordinates and dimensions if necessary
-
-        predictand = utils.checkIndex(predictand)
-        predictand = utils.checkUnitsTempt(predictand, 'tasmean')
-        predictand = utils.removeWrongData(predictand, 'tasmean', predictand_name)
-
-        # Align both datasets in time
-        predictand=predictand.assign_coords({'time': predictand.indexes['time'].normalize()})
-
-        y, x = utils.alignDatasets(grid1=predictand, grid2=predictors, coord='time')
-
-        yTrainTest = y.sel(time=slice(*yearsTrainTest)).load()
-        if oldMask == None:
-            oldMask = utils.obtainMask(grid = yTrainTest, var = 'tasmean')
-            newMask = oldMask
-        else:
-            yFlat = oldMask.flatten(grid=yTrainTest, var='tasmean')
-            yFlat_array = utils.toArray(yFlat)
-            yFlat['tasmean'].values = yFlat_array
-            yUnflatten = oldMask.unFlatten(grid=yFlat, var='tasmean')
-            # NUEVA MASCARA
-            newMask = utils.obtainMask(grid = yUnflatten, var = 'tasmean')
-        oldMask = newMask
-    
-    # SAVE newMask
-    with open(f'{MODELS_PATH}generalMask{yearsTrainTest[0]}-{yearsTrainTest[1]}.pkl', 'wb') as f:
-        pickle.dump(newMask, f)
-
-
-
 for predictand_name in ENSEMBLE_PREDICTAND_NAME:
     #print(f"Working on predictand :{predictand_name}")
     file_name = utils.getFileName(DATA_PATH_PREDICTANDS_SAVE, predictand_name, keyword = 'tasmean')
@@ -149,19 +92,29 @@ for predictand_name in ENSEMBLE_PREDICTAND_NAME:
     predictand=predictand.assign_coords({'time': predictand.indexes['time'].normalize()})
 
     y, x = utils.alignDatasets(grid1=predictand, grid2=predictors, coord='time')
-    # # Filtrar los datos, eliminando esas fechas
-    # x = x.where(~x.time.isin(fechas_a_eliminar), drop=True)
-    # y = y.where(~y.time.isin(fechas_a_eliminar), drop=True)
+    # Filtrar los datos, eliminando esas fechas
+    x = x.where(~x.time.isin(fechas_a_eliminar), drop=True)
+    y = y.where(~y.time.isin(fechas_a_eliminar), drop=True)
+    # print(f"x: {x}")
+    # print(f"y: {y}")
+    if predictand_name == 'AEMET_0.25deg':
+        aemet = y
+    elif predictand_name == 'CHELSA':
+        chelsa = y
+            # # Suponiendo que tu dataset se llama 'ds'
+    leap_days = y.time.where((y.time.dt.month == 2) & (y.time.dt.day == 28), drop=True)
+    #print(f"leap days{len(leap_days.time)}")
+    #print(f"leap days{leap_days}")
+    #  # Suponiendo que tu dataset se llama 'ds'
+    # dec_days = y.time.where((y.time.dt.month == 12) & (y.time.dt.day == 31), drop=True)
+    # print(f"dec days{len(dec_days.time)}")
+    # print(f"dec days{dec_days}")
 
-    # if predictand_name == 'AEMET_0.25deg':
-    #     aemet = y
-    # elif predictand_name == 'CHELSA':
-    #     chelsa = y
-    #         # # Suponiendo que tu dataset se llama 'ds'
-    # leap_days = y.time.where((y.time.dt.month == 2) & (y.time.dt.day == 28), drop=True)
-    # print(x)
-    # x = x.sel(time=~x.time.isin(fechas_a_eliminar))
-    # y = x.sel(time=~y.time.isin(fechas_a_eliminar))
+
+    # Split into train and test set
+    yearsTrain = ('1980-01-01', '2003-12-31')
+    yearsTest = ('2004-01-01', '2015-12-31')
+
 
     # Filtrar años en base a predictandos y ver sus NANs y los rangos de años
     xTrain = x.sel(time=slice(*yearsTrain)).load()
@@ -170,19 +123,6 @@ for predictand_name in ENSEMBLE_PREDICTAND_NAME:
     yTrain = y.sel(time=slice(*yearsTrain)).load()
     yTest = y.sel(time=slice(*yearsTest)).load()
 
-    xTrain = xTrain.sel(time=~xTrain.time.isin(fechas_a_eliminar))
-    xTest = xTest.sel(time=~xTest.time.isin(fechas_a_eliminar))
-
-    yTrain = yTrain.sel(time=~yTrain.time.isin(fechas_a_eliminar))
-    yTest = yTest.sel(time=~yTest.time.isin(fechas_a_eliminar))
-    
-    #
-    # if predictand_name == 'AEMET_0.25deg':
-    #     yAemetTrain = yTrain
-    #     yAemetTest = yTest
-    # elif predictand_name == 'CHELSA':
-    #     yChelsaTrain = yTrain
-    #     yChelsaTest = yTest
     # Standardize the predictor
     meanTrain = xTrain.mean('time')
     stdTrain = xTrain.std('time')
@@ -190,21 +130,56 @@ for predictand_name in ENSEMBLE_PREDICTAND_NAME:
 
     # Extract the raw data from the xarray Dataset
     xTrainStand_array = utils.toArray(xTrainStand)
+
+    if predictand_name == 'AEMET_0.25deg':
+        aemet = yTrain
+    elif predictand_name == 'CHELSA':
+        chelsa = yTrain
     
     # Remove nans gridpoints and flatten the predictand
-    yTrainFlat = newMask.flatten(grid=yTrain, var='tasmean')
+    baseMask = utils.obtainMask(
+        path=f'{DATA_PATH_PREDICTANDS_SAVE}AEMET_0.25deg/AEMET_0.25deg_tasmean_1951-2022.nc',
+        var='tasmean',
+        to_slice=(yearsTrain[0], yearsTest[1]))
+    yTrainFlat = baseMask.flatten(grid=yTrain, var='tasmean')
+    #plt.figure(); yTrain['tasmean'].mean('time').plot(); plt.savefig('./yTestPre.pdf')
+
+    # Extract the raw data from the xarray Dat
+    # aset
     yTrainFlat_array = utils.toArray(yTrainFlat)
     yTrainFlat['tasmean'].values = yTrainFlat_array
-    yTrainUnflatten = newMask.unFlatten(grid=yTrainFlat, var='tasmean')
+    yTrainUnflatten = baseMask.unFlatten(grid=yTrainFlat, var='tasmean')
+
 
 
     # Same 
-    yTestFlat = newMask.flatten(grid=yTest, var='tasmean')
+    yTestFlat = baseMask.flatten(grid=yTest, var='tasmean')
     yTestFlat_array = utils.toArray(yTestFlat)
     yTestFlat['tasmean'].values = yTestFlat_array
-    yTestUnflatten = newMask.unFlatten(grid=yTestFlat, var='tasmean')
+    yTestUnflatten = baseMask.unFlatten(grid=yTestFlat, var='tasmean')
+    maskToUse = baseMask
 
+    #if np.isnan(yTrainFlat_array).sum() > 0:
+    if predictand_name == 'ERA5-Land0.25deg':
+        # Second security mask
+        secondMask = utils.obtainMask(grid = yTrainUnflatten, var = 'tasmean')
+        ySecondTrainFlat = secondMask.flatten(grid=yTrainUnflatten, var='tasmean')
+        yTrainFlat_array = utils.toArray(ySecondTrainFlat)
+        yTestFlat2 = secondMask.flatten(grid=yTestUnflatten, var='tasmean')
+        yTestFlat_array2 = utils.toArray(yTestFlat2)
+        yTestFlat2['tasmean'].values = yTestFlat_array2
+        yTestUnflatten = secondMask.unFlatten(grid=yTestFlat2, var='tasmean')
+        maskToUse = secondMask
+        print(f"Valores NAN en yTrain: {np.isnan(yTrainFlat_array).sum()}- Radio de nueva mascara: {secondMask.refArray.shape}/{baseMask.refArray.shape}")
+    elif 'secondMask' in globals():
+        yTrainFlat_array = utils.toArray(ySecondTrainFlat)
+        yTestFlat_array2 = utils.toArray(yTestFlat2)
+        yTestFlat2['tasmean'].values = yTestFlat_array2
+        yTestUnflatten = secondMask.unFlatten(grid=yTestFlat2, var='tasmean')
+        maskToUse = secondMask
+        print(f"Valores NAN en yTrain: {np.isnan(yTrainFlat_array).sum()}- Radio de nueva mascara: {secondMask.refArray.shape}/{baseMask.refArray.shape}")
 
+    #print(f"xTrainArray: {xTrainStand_array.shape} -  yTrainArray: {yTrainFlat_array.shape}")
     # Split training data into training and validation sets
     xTrainM, yTrainM, \
     xValidM, yValidM = utils.validSet_fromArray(Xarray=xTrainStand_array,
@@ -218,17 +193,18 @@ for predictand_name in ENSEMBLE_PREDICTAND_NAME:
     yValidEnsemble.append(yValidM)
 
 
-# # Encontrar los días en ds1 que no están en ds2
-# unique_days_train = set(yAemetTrain.time.values) - set(yChelsaTrain.time.values)
-# unique_days_test = set(yAemetTest.time.values) - set(yChelsaTest.time.values)
+# Supongamos que los datasets son ds1 y ds2
+time1 = aemet.time.values  # Fechas en el primer dataset
+time2 = chelsa.time.values  # Fechas en el segundo dataset
 
-# # Convertir a lista ordenada si es necesario
-# unique_days_train = sorted(unique_days_train)
-# unique_days_test = sorted(unique_days_test)
+# Encontrar los días en ds1 que no están en ds2
+unique_days = set(time1) - set(time2)
 
-# # Mostrar resultados
-# print(f"{unique_days_train}")
-# print(f"{unique_days_test}")
+# Convertir a lista ordenada si es necesario
+unique_days = sorted(unique_days)
+
+# Mostrar resultados
+#print(f"Días en ds1 pero no en ds2: {unique_days}")
 
 
 # Comenzamos entrenamiento del modelo
@@ -244,27 +220,7 @@ model = models.DeepESD(spatial_x_dim=xTrainStand_array.shape[2:],
 # Create Dataset and DataLoaders
 batchSize = 64
 
-# print("xTrainM")
-# print(xTrainM.shape)
-# print(xTrainM)
-print("yTrainEnsemble SHAPE")
-for i in yTrainEnsemble:
-    print(i.shape)   
-print("yTrainEnsemble")
-for i in yTrainEnsemble:
-    hay_nan = any(np.isnan(arr).any() for arr in i)
-    print("¿Hay NaNs?", hay_nan)
-    print(i)    
-
 trainDataset = data.downscalingDatasetEnsemble(xTrainM, yTrainEnsemble)
-#print(f"train Indexes")
-#print(np.bincount(trainDataset.yIndex))
-#print(trainDataset[0])
-#print(trainDataset[0].y)
-# print("--------------------")
-# print(trainDataset[0][0])
-#print(trainDataset.y.shape)
-#print(trainDataset.y)
 trainDataloader = DataLoader(trainDataset, batch_size=batchSize,
                              shuffle=True)
 #print("TRAIN DATA LOADER")
@@ -306,7 +262,7 @@ yPredTest = utils.predDataset(X=xTestStand_array,
                               model=model,
                               device='cpu',
                               ref=yTestUnflatten,
-                              flattener=newMask,
+                              flattener=maskToUse,
                               var='tasmean')
 
 yPredTest.to_netcdf(f'{PREDS_PATH}predTest_{modelName}.nc')
@@ -318,7 +274,7 @@ yPredTrain = utils.predDataset(X=xTrainStand_array,
                               model=model,
                               device='cpu',
                               ref=yTrainUnflatten,
-                              flattener=newMask,
+                              flattener=maskToUse,
                               var='tasmean')
 
 yPredTrain.to_netcdf(f'{PREDS_PATH}predTrain_{modelName}.nc')

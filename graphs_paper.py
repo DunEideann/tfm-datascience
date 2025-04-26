@@ -14,7 +14,7 @@ DATA_PATH_PREDICTORS = '/lustre/gmeteo/PTICLIMA/DATA/PROJECTIONS/CMIP6_PNACC/CMI
 DATA_PATH_PREDICTANDS_READ = '/lustre/gmeteo/PTICLIMA/DATA/AUX/GRID_INTERCOMP/'
 DATA_PATH_PREDICTANDS_SAVE = '/lustre/gmeteo/WORK/reyess/data/predictand/'
 DATA_PATH_SHAPE = '/lustre/gmeteo/WORK/reyess/shapes/'
-FIGS_PATH = '/lustre/gmeteo/WORK/reyess/figs/paper-march/'
+FIGS_PATH = '/lustre/gmeteo/WORK/reyess/figs/paper-april/'
 MODELS_PATH = '/oceano/gmeteo/users/reyess/tfm/official-code/models'
 DATA_PREDICTORS_TRANSFORMED = '/lustre/gmeteo/WORK/reyess/data/NorthAtlanticRegion_1.5degree/'
 PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/GCM/AEMET/'
@@ -30,7 +30,7 @@ SHAPE_NAME = ['Iberia', 'Pirineos', 'Tinto', 'Duero']
 
 # GENERAL VARIABLES
 predictands = ['ERA5-Land0.25deg', 'E-OBS','AEMET_0.25deg', 'Iberia01_v1.0', 'CHELSA']#, 'pti-grid',]
-predictands_map = {'ERA5-Land0.25deg': 'ERA5.Land', 'E-OBS': 'E-OBS','AEMET_0.25deg':'AEMET', 'Iberia01_v1.0':'Iberia01', 'CHELSA': 'CHELSA'}
+predictands_map = {'ERA5-Land0.25deg': 'ERA5-Land', 'E-OBS': 'E-OBS','AEMET_0.25deg':'ROCIO-IBEB', 'Iberia01_v1.0':'Iberia01', 'CHELSA': 'CHELSA'}
 metrics_1 = ['mean', '99quantile']
 predictands_group_1 = ['ERA5-Land0.25deg', 'E-OBS','AEMET_0.25deg']
 metrics_2 = ['Mean', '99Percentile']
@@ -91,6 +91,44 @@ if '1' in FIGS:
         utils.metricsGraph(datasets_metrics=data_metrics, figs_path=FIGS_PATH, vmin=[5, 15, -8], vmax=[25, 35, 12], pred_type='observation_whole', fig_num = fig_num, period = period, x_map = predictands_map)#, extension='png')
         utils.metricsGraph(datasets_metrics=data_metrics, figs_path=FIGS_PATH, vmin=[5, 15, -8], vmax=[25, 35, 12], pred_type='observation_whole', fig_num = fig_num, period = period, x_map = predictands_map, extension='png')
         fig_num += Decimal('0.1')
+    ##### FIGURA PARA VER TAMAÑO DE PIRINEOS
+    continuousCMAP2 = plt.get_cmap('cool')    
+    discreteCMAPnoWhite2 = ListedColormap(continuousCMAP2(np.linspace(0, 1, 11)[1:]))
+    figName = f'pirineos_region'
+    # Crear la figura y los ejes
+    fig, axes = plt.subplots(1, 1, figsize=(4, 3), sharex=False, sharey=False, subplot_kw={'projection': ccrs.PlateCarree()})
+
+    lon_min, lon_max = -0.37, 3.37
+    lat_min, lat_max = 41.42, 42.80
+    data_to_plot = whole_obs_metrics['annual']['E-OBS']['mean']['tasmean']
+    # Crear una máscara booleana
+    mask = (
+        (data_to_plot.lon >= lon_min) & (data_to_plot.lon <= lon_max) &
+        (data_to_plot.lat >= lat_min) & (data_to_plot.lat <= lat_max)
+    )
+
+    # Aplicar la máscara: los valores fuera de la región se vuelven NaN
+    data_to_plot_masked = data_to_plot.where(mask, np.nan)
+    # data_to_plot_uncropped = whole_obs_metrics['annual']['E-OBS']['mean']['tasmean']
+    # data_to_plot = data_to_plot_uncropped.sel(
+    # lon=slice(-0.37, 3.37),
+    # lat=slice(41.42, 42.80)
+    # )
+    im1 = axes.pcolormesh(data_to_plot_masked.coords['lon'].values, data_to_plot_masked.coords['lat'].values,
+                        data_to_plot_masked,
+                        transform=ccrs.PlateCarree(),
+                        cmap=discreteCMAPnoWhite2,
+                        vmin=5, vmax=25)
+    cax = fig.add_axes([0.125, 0.055, 0.776, 0.065]) #DIST DESDE IZQUIERDA/DIST DESDE ABAJO/LARDO HORI/LARGO/VERT
+    cbar = plt.colorbar(im1, cax, pad=0.05, spacing='uniform', orientation='horizontal')#, extend='both', extendfrac='auto', )
+    cbar.set_ticks(np.linspace(5, 25, 6))
+    cbar.ax.tick_params(labelsize=15)
+
+    plt.subplots_adjust(top=0.95, bottom=0.05, wspace=0.2, hspace=0.002)
+    plt.savefig(f'{FIGS_PATH}{figName}.png', bbox_inches='tight')
+    plt.savefig(f'{FIGS_PATH}{figName}.pdf', bbox_inches='tight')
+    plt.close()
+    ##### TERMINA FIGURA
 
     del whole_obs, whole_obs_metrics, obs
     
@@ -108,8 +146,8 @@ if '1' in FIGS:
         #std_metrics['group1'][metric_stat] = group1_metrics_concatened[metric_stat].std(dim='member')
 
     # GRAPHS STANDAR DEVIATION
-    utils.stdGraphs(std_metrics=std_metrics, figs_path=FIGS_PATH, vmin=[0, 0], vmax=[2.5, 2.5], pred_type='standard_deviation', fig_num=1, period=period, extension='png')
-    utils.stdGraphs(std_metrics=std_metrics, figs_path=FIGS_PATH, vmin=[0, 0], vmax=[2.5, 2.5], pred_type='standard_deviation', fig_num=1, period=period, extension='pdf')
+    utils.stdGraphs(std_metrics=std_metrics, figs_path=FIGS_PATH, vmin=[0, 0], vmax=[1.5, 1.5], pred_type='standard_deviation_3', fig_num=1, period=period, extension='png')
+    utils.stdGraphs(std_metrics=std_metrics, figs_path=FIGS_PATH, vmin=[0, 0], vmax=[1.5, 1.5], pred_type='standard_deviation_3', fig_num=1, period=period, extension='pdf')
 
             
     del total_metrics, total_metrics_concatened, std_metrics#, group1_metrics_concatened, group1_metrics
@@ -946,6 +984,8 @@ if '6' in FIGS:
 
         # Scatter for dataset 1
         color_num = 0
+        print(f"Observational mean: {metric}")
+        print(observational_mean)
         
         for predictand_name in predictands:
             test_values = test_pred_total[predictands_map[predictand_name]]

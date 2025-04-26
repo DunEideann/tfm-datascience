@@ -3,12 +3,14 @@ import torch
 from lib import utils, models, data
 import sys, time
 import numpy as np
+import os
+import pickle
 
 DATA_PATH_PREDICTORS = '/lustre/gmeteo/PTICLIMA/DATA/PROJECTIONS/CMIP6_PNACC/CMIP6_models/'
 DATA_PATH_PREDICTANDS_READ = '/lustre/gmeteo/PTICLIMA/DATA/AUX/GRID_INTERCOMP/'
 DATA_PATH_PREDICTANDS_SAVE = '/lustre/gmeteo/WORK/reyess/data/predictand/'
 FIGS_PATH = '/lustre/gmeteo/WORK/reyess/figs/'
-MODELS_PATH = '/oceano/gmeteo/users/reyess/tfm/official-code/models-ensemble'
+MODELS_PATH = '/oceano/gmeteo/users/reyess/tfm/official-code/models-ensemble/'
 PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/ensemble/'
 #MODELS_PATH = '/oceano/gmeteo/users/reyess/tfm/official-code/models'
 #PREDS_PATH = '/lustre/gmeteo/WORK/reyess/preds/GCM/AEMET/'
@@ -34,32 +36,30 @@ future_3 = ('2081-01-01', '2100-12-31')
 future_4 = ('2061-01-01', '2080-12-31')
 yearsTrain = ('1980-01-01', '2003-12-31')
 yearsTest = ('2004-01-01', '2015-12-31')
+yearsTrainTest = ('1980-01-01','2015-12-31')
 periods = [hist_baseline, future_1, future_2, future_3, future_4, yearsTest, yearsTrain]
-
+#Iberia01_v1.0 728 E-OBS 730 AEMET_0.25deg CHELSA ERA5-Land0.25deg 721
 # Cargamos los datos del dataset
-predictand = utils.getPredictand(DATA_PATH_PREDICTANDS_SAVE, MODEL_NAME.rpartition('_')[0], 'tasmean')
+predictand = utils.getPredictand(DATA_PATH_PREDICTANDS_SAVE, 'ERA5-Land0.25deg', 'tasmean')
 predictand = predictand.sel(time=slice(*(yearsTrain[0], yearsTrain[1]))).load()
 
 # Creamos la mascara a usar
-baseMask = utils.obtainMask(
-    path=f'{DATA_PATH_PREDICTANDS_SAVE}AEMET_0.25deg/AEMET_0.25deg_tasmean_1951-2022.nc',
-    var='tasmean',
-    to_slice=(yearsTrain[0], yearsTrain[1]))
-maskToUse = baseMask
-yFlat = baseMask.flatten(grid=predictand, var='tasmean')
+# CARGA DE MASCARA SI EXISTE
+file_path = f'{MODELS_PATH}generalMask{yearsTrainTest[0]}-{yearsTrainTest[1]}.pkl'
+if os.path.exists(file_path):
+    print(f"Existe path: {file_path}")
+    with open(file_path, 'rb') as f:
+        maskToUse = pickle.load(f)
+else:
+    print("No existe path")
+    maskToUse = None  # o lo que quieras hacer si no existe
+
+yFlat = maskToUse.flatten(grid=predictand, var='tasmean')
 # Extract the raw data from the xarray Dataset
 yFlat_array = utils.toArray(yFlat)
 yFlat['tasmean'].values = yFlat_array
-yUnflatten = baseMask.unFlatten(grid=yFlat, var='tasmean')
+yUnflatten = maskToUse.unFlatten(grid=yFlat, var='tasmean')
 
-if np.isnan(yFlat_array).sum() > 0:
-    print("Segunda mascara en proceso")
-    secondMask = utils.obtainMask(grid = yUnflatten, var = 'tasmean')
-    yFlat = secondMask.flatten(grid=yUnflatten, var='tasmean')
-    yFlat_array = utils.toArray(yFlat)
-    yFlat['tasmean'].values = yFlat_array
-    yUnflatten = secondMask.unFlatten(grid=yFlat, var='tasmean')
-    maskToUse = secondMask
 
 era5_data = utils.getPredictors(DATA_PREDICTORS_TRANSFORMED)
 era5_predictor = era5_data.sel(time=slice(*(hist_reference[0], hist_reference[1]))).load()
@@ -107,6 +107,9 @@ model = models.DeepESD(spatial_x_dim=xStand_array.shape[2:],
 
 # Load the model state dictionary from a file
 checkpoint = torch.load(f'{MODELS_PATH}/DeepESD_tas_{MODEL_NAME}.pt')
+
+print("Checkpoint")
+#print(checkpoint)
 model.load_state_dict(checkpoint)
 
 # Realizamos la prediccion
